@@ -1,5 +1,4 @@
-import { roomDetails, joinRoom, handleBet } from "../services/game-event.js";
-import { exitRoom } from "../utilities/helper-function.js";
+// import { exitRoom } from "../utilities/helper-function.js";
 
 export const registerEvents = async (io, socket) => {
   socket.on("action", (data) => {
