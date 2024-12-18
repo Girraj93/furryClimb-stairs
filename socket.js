@@ -7,7 +7,6 @@ import {
 } from "./utilities/redis-connection.js";
 
 export const initSocket = (io) => {
-  // initPlayerBase(io);
   const onConnection = async (socket) => {
     console.log("socket connected");
     const token = socket.handshake.query.token;
@@ -51,21 +50,3 @@ export const initSocket = (io) => {
   };
   io.on("connection", onConnection);
 };
-
-// const initPlayerBase = async (io) => {
-//   try {
-//     for (const rmid in roomManager) {
-//       const rmDl = getRoomDetails(rmid);
-//       const playersBuff = Math.floor(rmDl.mnBt / 20);
-//       playerCount += Math.floor(Math.random() * 5);
-//       playerCount -= Math.floor(Math.random() * 5);
-//       io.to(rmid).emit("message", {
-//         action: "playercount",
-//         msg: `${playerCount - playersBuff}`,
-//       });
-//       setTimeout(() => initPlayerBase(io), 10000);
-//     }
-//   } catch (er) {
-//     console.error(er);
-//   }
-// };

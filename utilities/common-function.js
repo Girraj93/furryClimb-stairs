@@ -56,7 +56,7 @@ export const updateBalanceFromAccount = async (data, key, playerDetails) => {
 
 export const prepareDataForWebhook = async (betObj, key, socket) => {
   try {
-    let { lobby_id, betAmount, game_id, bet_id, final_amount, user_id, txnId } =
+    let { betAmount, game_id, bet_id, final_amount, user_id, txnId } =
       betObj;
     let userIP = socket?.handshake?.address || "";
     if (socket && socket.handshake.headers["x-forwarded-for"]) {
@@ -71,14 +71,14 @@ export const prepareDataForWebhook = async (betObj, key, socket) => {
     };
     switch (key) {
       case "DEBIT":
-        obj.description = `${obj.amount} debited for Andar Bahar game for Round ${lobby_id}`;
+        obj.description = `${obj.amount} debited for furryClimb-stairs game for Round `;
         obj.bet_id = bet_id;
         obj.txn_type = 0;
         break;
       case "CREDIT":
         obj.amount = final_amount;
         obj.txn_ref_id = txnId;
-        obj.description = `${final_amount} credited for Andar Bahar game for Round ${lobby_id}`;
+        obj.description = `${final_amount} credited for furryClimb-stairs game for Round `;
         obj.txn_type = 1;
         break;
       default:
