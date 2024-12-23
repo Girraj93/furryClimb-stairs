@@ -8,81 +8,78 @@ import {
     postDataToSourceForBet,
     prepareDataForWebhook,
   } from "../../utilities/common-function.js";
+import { insertBets } from "../bet/bet-db.js";
 
-export const handleBet = async(io,socket,event)=>{
-    const user_id = socket.data?.userInfo.user_id;
-    console.log(user_id);
-if (!user_id) {
-  return socket.emit("message", {
-    action: "betError",
-    msg: "Invalid Player Details",
-  });
-}
-    let playerDetails = await getCache(`PL:${user_id}`);
-    if (!playerDetails)
-      return socket.emit("message", {
-        action: "betError",
-        msg: "Invalid Player Details",
-      });
-    const parsedPlayerDetails = JSON.parse(playerDetails);
-    const { userId, operatorId, token, game_id, balance } = parsedPlayerDetails;
-    console.log(event, "event");
-    const bet_id = `BT:${userId}:${operatorId}`;
-    const identifier = `${operatorId}:${userId}`;
-    const betamt = event;
-    const betObj = {
-        bet_id,
-        token,
-        socket_id: parsedPlayerDetails.socketId,
-        game_id,
-        identifier,
-      };
-    if (Number(betamt) > Number(balance)) {
-        return socket.emit("message", {
-          action: "betError",
-          msg: `insufficient balance`,
-        });
-      }
-      const webhookData = await prepareDataForWebhook(
-        {
-          betAmount: betamt,
-          game_id,
-          user_id: userId,
-        },
-        "DEBIT",
-        socket
-      );
-      betObj.txn_id = webhookData.txn_id;
-      try {
-        await postDataToSourceForBet({
-          webhookData,
-          token,
-          socketId: socket.id,
-        });
-      } catch (err) {
-        failedBetsLogger.error(
-          JSON.stringify({ req: bet_id, res: "bets cancelled by upstream" })
-        );
-        return socket.emit("message", {
-          action: "betError",
-          msg: `Bet Cancelled by Upstream Server`,
-        });
-      }
-    parsedPlayerDetails.balance = Number(balance - Number(betamt)).toFixed(2);
-    await setCache(`PL:${socket.id}`, JSON.stringify(parsedPlayerDetails));
-    socket.emit("message", {
-      action: "infoResponse",
-      msg: JSON.stringify({
-        urId: userId,
-        urNm: parsedPlayerDetails.name,
-        operator_id: operatorId,
-        bl: Number(parsedPlayerDetails.balance).toFixed(2),
-        avIn: parsedPlayerDetails.image,
-      }),
-    });
-    return socket.emit("message", {
-      action: "bet",
-      msg: `Bet Placed successfully`,
-    });
+export const startMatch = async (io, socket, event) => {
+  let betObj = {};
+  await handleBet(io, socket, event, betObj);
+  const [betAmt,fireball] = event;
+  const generateFireballs =  randomFireballsGenerator(fireball)
+  console.log(generateFireballs,"generate rndom fireballs");
 }
 
+const randomFireballsGenerator = (fireball) => {
+  const generatedFireballs = [];
+  for (let value in fireball) {
+    const randomIndex = Math.floor(Math.random() * fireball.length);
+    generatedFireballs.push(fireball[randomIndex]);
+  }
+  return generatedFireballs;
+};
+
+//handle bets and Debit transation---------------------------------------
+export const handleBet = async (io, socket, event, betObj) => {
+  const user_id = socket.data?.userInfo.user_id;
+  let playerDetails = await getCache(`PL:${user_id}`);
+  if (!playerDetails)
+    return socket.emit("error", "Invalid Player Details");
+  const parsedPlayerDetails = JSON.parse(playerDetails);
+  const { userId,operatorId,token,game_id,balance} = parsedPlayerDetails;
+  const matchId = generateUUIDv7()
+  const bet_id = `BT:${matchId}:${userId}:${operatorId}`;
+  const [betAmt,fireball] = event;
+  Object.assign(betObj, {
+    betAmt,
+    bet_id,
+    token,
+    socket_id: parsedPlayerDetails.socketId,
+    game_id,
+    matchId
+  })
+  if (Number(betAmt) > Number(balance)) {
+    return socket.emit("error", "insufficient balance");
+  }
+  const webhookData = await prepareDataForWebhook(
+    {
+      betAmount: betAmt,
+      game_id,
+      user_id: userId,
+      matchId,
+      bet_id,
+    },
+    "DEBIT",
+    socket
+  );
+  betObj.txn_id = webhookData.txn_id;
+  try {
+    await postDataToSourceForBet({
+      webhookData,
+      token,
+      socketId: socket.id,
+    });
+  } catch (err) {
+    JSON.stringify({ req: bet_id, res: "bets cancelled by upstream" })
+    return socket.emit("error", "Bet Cancelled by Upstream Server")
+  }
+  await insertBets({
+    bet_id,
+    user_id,
+    operator_id: operatorId,
+    matchId,
+    betAmt,
+    fireball
+  })
+  parsedPlayerDetails.balance = Number(balance - Number(betAmt)).toFixed(2);
+  await setCache(`PL:${socket.id}`, JSON.stringify(parsedPlayerDetails));
+  socket.emit("message", "Bet Placed successfully")
+}
