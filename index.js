@@ -6,7 +6,7 @@ import { createServer } from "http";
 import { initSocket } from "./socket.js";
 import dotenv from "dotenv";
 dotenv.config();
-const port = process.env.PORT || 6000;
+const port = process.env.PORT || 5000;
 import { createLogger } from "./utilities/logger.js";
 import { checkDatabaseConnection } from "./utilities/db-connection.js";
 import { initializeRedis } from "./utilities/redis-connection.js";
@@ -18,15 +18,24 @@ const startServer = async () => {
   await Promise.all([checkDatabaseConnection(), initializeRedis(), connect()]);
   var app = express();
   let server = createServer(app);
-  var io = new Server(server);
-  app.use(cors());
+  // var io = new Server(server);
+  app.use(cors({ origin: "*" }));
+  var io = new Server(server, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"],
+    },
+  });
   app.use(express.json());
   app.use("/routes", router);
   initSocket(io);
   app.get("/", (req, res) => {
     return res
       .status(200)
-      .send({ status: true, msg: "furry Climb staires game server is up and running" });
+      .send({
+        status: true,
+        msg: "furry Climb staires game server is up and running",
+      });
   });
 
   server.listen(port, () => {

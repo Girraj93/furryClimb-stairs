@@ -11,6 +11,8 @@ import {
 import { addSettleBet, insertBets } from "../bet/bet-db.js";
 import { sendToQueue } from "../../utilities/amqp.js";
 import {
+  allFireBalls,
+  generateFireballs,
   getLastMultiplier,
   multipliers,
 } from "../../utilities/helper-function.js";
@@ -30,31 +32,13 @@ export const startMatch = async (io, socket, betAmount, fireball) => {
   };
 
   await handleBet(io, socket, betAmount, betObj, fireball);
-  const selectedMultipliers = multipliers[Number(fireball)];
+  // const selectedMultipliers = multipliers[Number(fireball)];
 
-  socket.emit("message", {
-    action: "multiplier",
-    msg: selectedMultipliers,
-  });
+  // socket.emit("message", {
+  //   action: "multiplier",
+  //   msg: selectedMultipliers,
+  // });
 };
-
-function generateFireballs(firstIndex, lastIndex, fireball) {
-  firstIndex = Number(firstIndex);
-  lastIndex = Number(lastIndex);
-  fireball = Number(fireball);
-  if (fireball > lastIndex - firstIndex + 1) {
-    throw new Error("Fireball count exceeds the available range.");
-  }
-
-  const totalFireballs = new Set();
-  while (totalFireballs.size < fireball) {
-    const randomIndex =
-      Math.floor(Math.random() * (lastIndex - firstIndex + 1)) + firstIndex;
-    totalFireballs.add(randomIndex); // Ensures no duplicates
-  }
-
-  return Array.from(totalFireballs);
-}
 
 //handle bets and Debit transation---------------------------------------
 export const handleBet = async (io, socket, betAmount, betObj, fireball) => {
@@ -153,11 +137,14 @@ export const gamePlay = async (
 
   if (gameState[user_id].bombs.includes(Number(currentIndex))) {
     gameState[user_id].alive = false;
+    const fifi = allFireBalls(firstIndex, lastIndex, fireball, row);
+    console.log(fifi, "fifi");
 
     socket.emit("message", {
       action: "gameState",
-      msg: gameState,
+      msg: gameState[user_id],
     });
+    delete gameState[user_id];
     return socket.emit("message", {
       action: "gameOver",
       msg: "You lose! You hit a fireball!",
@@ -166,26 +153,27 @@ export const gamePlay = async (
 
   if (Number(row) === Number(appConfig.totalRows)) {
     let multiplier = getLastMultiplier(fireball);
+    socket.emit("message", {
+      action: "gameState",
+      msg: gameState[user_id],
+    });
     await cashout(io, socket, multiplier);
   }
 
   socket.emit("message", {
     action: "gameState",
-    msg: gameState,
+    msg: gameState[user_id],
   });
 };
 
 export const cashout = async (io, socket, multiplier) => {
-  console.log("1");
   const user_id = socket.data?.userInfo.user_id;
   let playerDetails = await getCache(`PL:${user_id}`);
-  console.log("2");
   if (!playerDetails)
     return socket.emit("message", {
       action: "cashoutError",
       msg: "Invalid player details",
     });
-  console.log("2");
   const parsedPlayerDetails = JSON.parse(playerDetails);
   const settlements = [];
   const userBetData = betObj[parsedPlayerDetails.userId];
@@ -195,7 +183,6 @@ export const cashout = async (io, socket, multiplier) => {
       msg: "no bet data found",
     });
   }
-  console.log("3");
   let final_amount = Number(userBetData.betAmount) * Number(multiplier);
   const webhookData = await prepareDataForWebhook(
     {
@@ -233,6 +220,7 @@ export const cashout = async (io, socket, multiplier) => {
     await setCache(`PL:${user_id}`, JSON.stringify(parsedPlayerDetails));
 
     delete betObj[user_id];
+    delete gameState[user_id];
 
     io.to(parsedPlayerDetails.socketId).emit("message", {
       action: "info",

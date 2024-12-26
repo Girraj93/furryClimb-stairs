@@ -1,6 +1,9 @@
 import { getUserDataFromSource } from "./module/players/player-data.js";
 import { registerEvents } from "./router/event-route.js";
-import { hiddenColumnsPerRow } from "./utilities/helper-function.js";
+import {
+  hiddenColumnsPerRow,
+  multipliers,
+} from "./utilities/helper-function.js";
 import {
   deleteCache,
   getCache,
@@ -40,7 +43,7 @@ export const initSocket = (io) => {
     );
     socket.emit("message", {
       action: "gameSettings",
-      msg: hiddenColumnsPerRow,
+      msg: { hiddenColumnsPerRow, multipliers },
     });
     registerEvents(io, socket);
     socket.on("disconnect", async () => {

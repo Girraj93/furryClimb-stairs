@@ -40,12 +40,38 @@ export function getMultiplier(fireballNumber, betIndex) {
   return row[betIndex];
 }
 
+// export function allFireBalls(firstIndex, lastIndex, fireball, currentRow) {
+//   firstIndex = Number(firstIndex);
+//   lastIndex = Number(lastIndex);
+//   fireball = Number(fireball);
+//   currentRow = Number(currentRow);
+//   totalRows = appConfig.totalRows;
+
+//   if (fireball > lastIndex - firstIndex + 1) {
+//     throw new Error("Fireball count exceeds the available range.");
+//   }
+
+//   const fireballsByRow = {};
+
+//   for (let row = currentRow + 1; row <= totalRows; row++) {
+//     const totalFireballs = new Set();
+//     while (totalFireballs.size < fireball) {
+//       const randomIndex =
+//         Math.floor(Math.random() * (lastIndex - firstIndex + 1)) + firstIndex;
+//       totalFireballs.add(randomIndex);
+//     }
+//     fireballsByRow[row] = Array.from(totalFireballs);
+//   }
+
+//   return fireballsByRow;
+// }
+
 export function allFireBalls(firstIndex, lastIndex, fireball, currentRow) {
   firstIndex = Number(firstIndex);
   lastIndex = Number(lastIndex);
   fireball = Number(fireball);
   currentRow = Number(currentRow);
-  totalRows = appConfig.totalRows;
+  const totalRows = appConfig.totalRows;
 
   if (fireball > lastIndex - firstIndex + 1) {
     throw new Error("Fireball count exceeds the available range.");
@@ -54,12 +80,30 @@ export function allFireBalls(firstIndex, lastIndex, fireball, currentRow) {
   const fireballsByRow = {};
 
   for (let row = currentRow + 1; row <= totalRows; row++) {
+    const hiddenColumns = new Set(hiddenColumnsPerRow[row] || []);
+    const validColumns = [];
+
+    // Create an array of valid columns (excluding hidden columns)
+    for (let col = firstIndex; col <= lastIndex; col++) {
+      if (!hiddenColumns.has(col)) {
+        validColumns.push(col);
+      }
+    }
+
+    if (fireball > validColumns.length) {
+      throw new Error(
+        `Fireball count exceeds the available valid columns for row ${row}.`
+      );
+    }
+
+    // Generate fireballs for this row
     const totalFireballs = new Set();
     while (totalFireballs.size < fireball) {
       const randomIndex =
-        Math.floor(Math.random() * (lastIndex - firstIndex + 1)) + firstIndex;
+        validColumns[Math.floor(Math.random() * validColumns.length)];
       totalFireballs.add(randomIndex);
     }
+
     fireballsByRow[row] = Array.from(totalFireballs);
   }
 
@@ -111,4 +155,22 @@ export function getLastMultiplier(fireball) {
     throw new Error(`Invalid fireball level: ${fireball}`);
   }
   return selectedMultipliers[selectedMultipliers.length - 1];
+}
+
+export function generateFireballs(firstIndex, lastIndex, fireball) {
+  firstIndex = Number(firstIndex);
+  lastIndex = Number(lastIndex);
+  fireball = Number(fireball);
+  if (fireball > lastIndex - firstIndex + 1) {
+    throw new Error("Fireball count exceeds the available range.");
+  }
+
+  const totalFireballs = new Set();
+  while (totalFireballs.size < fireball) {
+    const randomIndex =
+      Math.floor(Math.random() * (lastIndex - firstIndex + 1)) + firstIndex;
+    totalFireballs.add(randomIndex); // Ensures no duplicates
+  }
+
+  return Array.from(totalFireballs);
 }
