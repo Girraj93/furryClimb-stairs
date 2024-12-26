@@ -24,12 +24,12 @@ export const initSocket = (io) => {
     socket.emit("message", {
       action: "info",
       msg: {
-        urId: userData.userId,
-        urNm: userData.name,
+        userId: userData.userId,
+        userName: userData.name,
         operator_id: userData.operatorId,
-        bl: Number(userData.balance).toFixed(2),
-        avIn: userData.image,
-        crTs: Date.now(),
+        balance: Number(userData.balance).toFixed(2),
+        avatarIndex: userData.image,
+        createdTimeStamps: Date.now(),
       },
     });
     await setCache(

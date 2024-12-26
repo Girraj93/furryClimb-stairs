@@ -103,14 +103,19 @@ export const handleBet = async (io, socket, betAmount, betObj, fireball) => {
 
   parsedPlayerDetails.balance = Number(balance - Number(betAmount)).toFixed(2);
   await setCache(`PL:${userId}`, JSON.stringify(parsedPlayerDetails));
+
   socket.emit("message", {
-    msg: "info",
-    data: {
-      urId: userId,
-      urNm: parsedPlayerDetails.name,
+    action: "info",
+    msg: {
+      userId: userId,
+      userName: parsedPlayerDetails.name,
       operator_id: operatorId,
-      bl: Number(parsedPlayerDetails.balance).toFixed(2),
+      balance: Number(parsedPlayerDetails.balance).toFixed(2),
     },
+  });
+  socket.emit("message", {
+    action: "bet",
+    msg: "Bet placed Successfully",
   });
 };
 
@@ -133,9 +138,10 @@ export const gamePlay = async (
   const balls = generateFireballs(firstIndex, lastIndex, fireball);
   console.log(balls, "balls");
   gameState[user_id].bombs.push(...balls);
-  gameState[user_id].stairs.push({ row, index: currentIndex });
+  gameState[user_id].stairs.push({ row: row, index: currentIndex });
   if (gameState[user_id].bombs.includes(Number(currentIndex))) {
     gameState[user_id].alive = false;
+
     socket.emit("message", {
       action: "gameState",
       msg: gameState,
@@ -211,8 +217,8 @@ export const cashout = async (io, socket, multiplier) => {
     io.to(parsedPlayerDetails.socketId).emit("message", {
       action: "info",
       msg: {
-        urId: user_id,
-        bl: parsedPlayerDetails.balance,
+        userId: user_id,
+        balance: parsedPlayerDetails.balance,
       },
     });
 
