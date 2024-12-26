@@ -21,13 +21,16 @@ export const initSocket = (io) => {
       console.log("Invalid token", token);
       return socket.disconnect(true);
     }
-    socket.emit("info", {
-      urId: userData.userId,
-      urNm: userData.name,
-      operator_id: userData.operatorId,
-      bl: Number(userData.balance).toFixed(2),
-      avIn: userData.image,
-      crTs: Date.now(),
+    socket.emit("message", {
+      action: "info",
+      msg: {
+        urId: userData.userId,
+        urNm: userData.name,
+        operator_id: userData.operatorId,
+        bl: Number(userData.balance).toFixed(2),
+        avIn: userData.image,
+        crTs: Date.now(),
+      },
     });
     await setCache(
       `PL:${userData.userId}`,

@@ -1,11 +1,16 @@
-import { startMatch } from "../module/game/gamePlay.js";
+import { cashout, gamePlay, startMatch } from "../module/game/gamePlay.js";
 export const registerEvents = async (io, socket) => {
   socket.on("action", (data) => {
     const event = data.split(":");
     switch (event[0]) {
-      //PB:betAmount:fireball:
-      case "PB":
-        return startMatch(io,socket,event.slice(1,event.length));
-      }
+      //start:betAmount:fireball
+      case "start":
+        return startMatch(io, socket, event[1], event[2]);
+      //CO:multiplier
+      case "CO":
+        return cashout(io, socket, event[1]);
+      case "GP":
+        return gamePlay(io, socket, event[1], event[2], event[3], event[4]);
+    }
   });
 };

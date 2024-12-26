@@ -1,66 +1,87 @@
 import {
-    deleteCache,
-    getCache,
-    setCache,
-  } from "../../utilities/redis-connection.js";
-  import {
-    generateUUIDv7,
-    postDataToSourceForBet,
-    prepareDataForWebhook,
-  } from "../../utilities/common-function.js";
-import { insertBets } from "../bet/bet-db.js";
+  deleteCache,
+  getCache,
+  setCache,
+} from "../../utilities/redis-connection.js";
+import {
+  generateUUIDv7,
+  postDataToSourceForBet,
+  prepareDataForWebhook,
+} from "../../utilities/common-function.js";
+import { addSettleBet, insertBets } from "../bet/bet-db.js";
+import { sendToQueue } from "../../utilities/amqp.js";
 
-export const startMatch = async (io, socket, event) => {
-  let betObj = {};
-  await handleBet(io, socket, event, betObj);
-  const [betAmt,fireball] = event;
-  const generateFireballs =  randomFireballsGenerator(fireball)
-  console.log(generateFireballs,"generate rndom fireballs");
-}
+const gameState = {};
+let betObj = {};
 
-const randomFireballsGenerator = (fireball) => {
-  const generatedFireballs = [];
-  for (let value in fireball) {
-    const randomIndex = Math.floor(Math.random() * fireball.length);
-    generatedFireballs.push(fireball[randomIndex]);
-  }
-  return generatedFireballs;
+export const startMatch = async (io, socket, betAmount, fireball) => {
+  console.log(betAmount, fireball);
+  const userId = socket.data.userInfo.userId;
+  gameState[userId] = {
+    level: fireball,
+    stairs: [],
+    bombs: [],
+    alive: true,
+  };
+
+  await handleBet(io, socket, betAmount, betObj, fireball);
 };
 
+function generateFireballs(firstIndex, lastIndex, fireball) {
+  firstIndex = Number(firstIndex);
+  lastIndex = Number(lastIndex);
+  fireball = Number(fireball);
+  if (fireball > lastIndex - firstIndex + 1) {
+    throw new Error("Fireball count exceeds the available range.");
+  }
+
+  const totalFireballs = new Set();
+  while (totalFireballs.size < fireball) {
+    const randomIndex =
+      Math.floor(Math.random() * (lastIndex - firstIndex + 1)) + firstIndex;
+    totalFireballs.add(randomIndex); // Ensures no duplicates
+  }
+
+  return Array.from(totalFireballs);
+}
+
 //handle bets and Debit transation---------------------------------------
-export const handleBet = async (io, socket, event, betObj) => {
+export const handleBet = async (io, socket, betAmount, betObj, fireball) => {
   const user_id = socket.data?.userInfo.user_id;
   let playerDetails = await getCache(`PL:${user_id}`);
-  if (!playerDetails)
-    return socket.emit("error", "Invalid Player Details");
+  if (!playerDetails) return socket.emit("error", "Invalid Player Details");
   const parsedPlayerDetails = JSON.parse(playerDetails);
-  const { userId,operatorId,token,game_id,balance} = parsedPlayerDetails;
-  const matchId = generateUUIDv7()
+  const { userId, operatorId, token, game_id, balance } = parsedPlayerDetails;
+  const matchId = generateUUIDv7();
   const bet_id = `BT:${matchId}:${userId}:${operatorId}`;
-  const [betAmt,fireball] = event;
-  Object.assign(betObj, {
-    betAmt,
+  betObj[userId] = betObj[userId] || {};
+  Object.assign(betObj[userId], {
+    betAmount,
     bet_id,
     token,
     socket_id: parsedPlayerDetails.socketId,
     game_id,
-    matchId
-  })
-  if (Number(betAmt) > Number(balance)) {
-    return socket.emit("error", "insufficient balance");
+    matchId,
+  });
+  if (Number(betAmount) > Number(balance)) {
+    return socket.emit("message", {
+      action: "betError",
+      msg: `insufficient balance`,
+    });
   }
   const webhookData = await prepareDataForWebhook(
     {
-      betAmount: betAmt,
+      matchId,
+      betAmount: betAmount,
       game_id,
       user_id: userId,
-      matchId,
       bet_id,
     },
     "DEBIT",
     socket
   );
-  betObj.txn_id = webhookData.txn_id;
+  betObj[userId].txn_id = webhookData.txn_id;
+
   try {
     await postDataToSourceForBet({
       webhookData,
@@ -68,18 +89,137 @@ export const handleBet = async (io, socket, event, betObj) => {
       socketId: socket.id,
     });
   } catch (err) {
-    JSON.stringify({ req: bet_id, res: "bets cancelled by upstream" })
-    return socket.emit("error", "Bet Cancelled by Upstream Server")
+    JSON.stringify({ req: bet_id, res: "bets cancelled by upstream" });
+    return socket.emit("error", "Bet Cancelled by Upstream Server");
   }
   await insertBets({
     bet_id,
     user_id,
     operator_id: operatorId,
     matchId,
-    betAmt,
-    fireball
-  })
-  parsedPlayerDetails.balance = Number(balance - Number(betAmt)).toFixed(2);
-  await setCache(`PL:${socket.id}`, JSON.stringify(parsedPlayerDetails));
-  socket.emit("message", "Bet Placed successfully")
-}
+    betAmount,
+    fireball,
+  });
+
+  parsedPlayerDetails.balance = Number(balance - Number(betAmount)).toFixed(2);
+  await setCache(`PL:${userId}`, JSON.stringify(parsedPlayerDetails));
+  socket.emit("message", {
+    msg: "info",
+    data: {
+      urId: userId,
+      urNm: parsedPlayerDetails.name,
+      operator_id: operatorId,
+      bl: Number(parsedPlayerDetails.balance).toFixed(2),
+    },
+  });
+};
+
+export const gamePlay = async (
+  io,
+  socket,
+  firstIndex,
+  lastIndex,
+  currentIndex,
+  row
+) => {
+  const user_id = socket.data?.userInfo.user_id;
+  if (!gameState[user_id]) {
+    return socket.emit("message", {
+      action: "gameError",
+      msg: "User not found in game state",
+    });
+  }
+  const fireball = gameState[user_id].level;
+  const balls = generateFireballs(firstIndex, lastIndex, fireball);
+  console.log(balls, "balls");
+  gameState[user_id].bombs.push(...balls);
+  gameState[user_id].stairs.push({ row, index: currentIndex });
+  if (gameState[user_id].bombs.includes(Number(currentIndex))) {
+    gameState[user_id].alive = false;
+    socket.emit("message", {
+      action: "gameState",
+      msg: gameState,
+    });
+    return socket.emit("message", {
+      action: "gameOver",
+      msg: "You lose! You hit a fireball!",
+    });
+  }
+
+  socket.emit("message", {
+    action: "gameState",
+    msg: gameState,
+  });
+};
+
+export const cashout = async (io, socket, multiplier) => {
+  const user_id = socket.data?.userInfo.user_id;
+  let playerDetails = await getCache(`PL:${user_id}`);
+  if (!playerDetails)
+    return socket.emit("message", {
+      action: "cashoutError",
+      msg: "Invalid player details",
+    });
+  const parsedPlayerDetails = JSON.parse(playerDetails);
+  const settlements = [];
+  const userBetData = betObj[parsedPlayerDetails.userId];
+  if (!userBetData) {
+    return io.to(parsedPlayerDetails.socketId).emit("message", {
+      action: "betError",
+      msg: "no bet data found",
+    });
+  }
+
+  let final_amount = Number(userBetData.betAmount) * Number(multiplier);
+  const webhookData = await prepareDataForWebhook(
+    {
+      user_id,
+      final_amount,
+      game_id: userBetData.game_id,
+      txnId: userBetData.txn_id,
+      matchId: userBetData.matchId,
+    },
+    "CREDIT",
+    socket
+  );
+  await sendToQueue(
+    "",
+    "games_cashout",
+    JSON.stringify({
+      ...webhookData,
+      operatorId: parsedPlayerDetails.operatorId,
+      token: userBetData.token,
+    })
+  );
+  settlements.push({
+    bet_id: userBetData.bet_id,
+    totalBetAmount: userBetData.betAmount,
+    winAmount: final_amount,
+  });
+  const cachedPlayerDetails = await getCache(`PL:${user_id}`);
+  if (cachedPlayerDetails) {
+    const parsedPlayerDetails = JSON.parse(cachedPlayerDetails);
+    console.log(parsedPlayerDetails.balance, "before update");
+    parsedPlayerDetails.balance = Number(
+      Number(parsedPlayerDetails.balance) + Number(final_amount)
+    ).toFixed(2);
+    console.log(parsedPlayerDetails.balance, "after update");
+    await setCache(`PL:${user_id}`, JSON.stringify(parsedPlayerDetails));
+
+    delete betObj[user_id];
+
+    io.to(parsedPlayerDetails.socketId).emit("message", {
+      action: "info",
+      msg: {
+        urId: user_id,
+        bl: parsedPlayerDetails.balance,
+      },
+    });
+
+    io.to(parsedPlayerDetails.socketId).emit("message", {
+      action: "wins",
+      msg: { final_amount, multiplier },
+    });
+    await addSettleBet(settlements);
+  }
+};
