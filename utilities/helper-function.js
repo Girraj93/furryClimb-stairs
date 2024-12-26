@@ -66,9 +66,9 @@ export function getMultiplier(fireballNumber, betIndex) {
 //   return fireballsByRow;
 // }
 
-export function allFireBalls(firstIndex, lastIndex, fireball, currentRow) {
-  firstIndex = Number(firstIndex);
-  lastIndex = Number(lastIndex);
+export function allFireBalls(fireball, currentRow) {
+  let firstIndex = 0;
+  let lastIndex = 19;
   fireball = Number(fireball);
   currentRow = Number(currentRow);
   const totalRows = appConfig.totalRows;
@@ -83,7 +83,6 @@ export function allFireBalls(firstIndex, lastIndex, fireball, currentRow) {
     const hiddenColumns = new Set(hiddenColumnsPerRow[row] || []);
     const validColumns = [];
 
-    // Create an array of valid columns (excluding hidden columns)
     for (let col = firstIndex; col <= lastIndex; col++) {
       if (!hiddenColumns.has(col)) {
         validColumns.push(col);
@@ -157,20 +156,51 @@ export function getLastMultiplier(fireball) {
   return selectedMultipliers[selectedMultipliers.length - 1];
 }
 
-export function generateFireballs(firstIndex, lastIndex, fireball) {
-  firstIndex = Number(firstIndex);
-  lastIndex = Number(lastIndex);
+// export function generateFireballs(firstIndex, lastIndex, fireball) {
+//   firstIndex = Number(firstIndex);
+//   lastIndex = Number(lastIndex);
+//   fireball = Number(fireball);
+//   if (fireball > lastIndex - firstIndex + 1) {
+//     throw new Error("Fireball count exceeds the available range.");
+//   }
+
+//   const totalFireballs = new Set();
+//   while (totalFireballs.size < fireball) {
+//     const randomIndex =
+//       Math.floor(Math.random() * (lastIndex - firstIndex + 1)) + firstIndex;
+//     totalFireballs.add(randomIndex); // Ensures no duplicates
+//   }
+
+//   return Array.from(totalFireballs);
+// }
+
+export function generateFireballs(currentRow, fireball) {
+  const firstIndex = 0;
+  const lastIndex = 19;
+  currentRow = Number(currentRow);
   fireball = Number(fireball);
+
   if (fireball > lastIndex - firstIndex + 1) {
     throw new Error("Fireball count exceeds the available range.");
   }
 
-  const totalFireballs = new Set();
-  while (totalFireballs.size < fireball) {
-    const randomIndex =
-      Math.floor(Math.random() * (lastIndex - firstIndex + 1)) + firstIndex;
-    totalFireballs.add(randomIndex); // Ensures no duplicates
+  const hiddenColumns = hiddenColumnsPerRow[currentRow] || [];
+
+  const validColumns = [];
+  for (let i = firstIndex; i <= lastIndex; i++) {
+    if (!hiddenColumns.includes(i)) {
+      validColumns.push(i);
+    }
   }
 
+  if (fireball > validColumns.length) {
+    throw new Error("Not enough valid columns to generate fireballs.");
+  }
+
+  const totalFireballs = new Set();
+  while (totalFireballs.size < fireball) {
+    const randomIndex = Math.floor(Math.random() * validColumns.length);
+    totalFireballs.add(validColumns[randomIndex]);
+  }
   return Array.from(totalFireballs);
 }

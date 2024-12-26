@@ -114,14 +114,7 @@ export const handleBet = async (io, socket, betAmount, betObj, fireball) => {
   });
 };
 
-export const gamePlay = async (
-  io,
-  socket,
-  firstIndex,
-  lastIndex,
-  currentIndex,
-  row
-) => {
+export const gamePlay = async (io, socket, currentIndex, row) => {
   const user_id = socket.data?.userInfo.user_id;
   if (!gameState[user_id]) {
     return socket.emit("message", {
@@ -130,19 +123,24 @@ export const gamePlay = async (
     });
   }
   const fireball = gameState[user_id].level;
-  const balls = generateFireballs(firstIndex, lastIndex, fireball);
+  const balls = generateFireballs(row, fireball);
   console.log(balls, "balls");
   gameState[user_id].bombs.push(...balls);
   gameState[user_id].stairs.push({ row: row, index: currentIndex });
 
   if (gameState[user_id].bombs.includes(Number(currentIndex))) {
     gameState[user_id].alive = false;
-    const fifi = allFireBalls(firstIndex, lastIndex, fireball, row);
-    console.log(fifi, "fifi");
+    const restFireBalls = allFireBalls(fireball, row);
+    console.log(restFireBalls, "fifi");
 
     socket.emit("message", {
       action: "gameState",
       msg: gameState[user_id],
+    });
+
+    socket.emit("message", {
+      action: "restFireBalls",
+      msg: restFireBalls,
     });
     delete gameState[user_id];
     return socket.emit("message", {
