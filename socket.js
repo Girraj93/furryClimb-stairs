@@ -1,5 +1,6 @@
 import { getUserDataFromSource } from "./module/players/player-data.js";
 import { registerEvents } from "./router/event-route.js";
+import { hiddenColumnsPerRow } from "./utilities/helper-function.js";
 import {
   deleteCache,
   getCache,
@@ -37,6 +38,10 @@ export const initSocket = (io) => {
       JSON.stringify({ ...userData, socketId: socket.id }),
       3600
     );
+    socket.emit("message", {
+      action: "gameSettings",
+      msg: hiddenColumnsPerRow,
+    });
     registerEvents(io, socket);
     socket.on("disconnect", async () => {
       await deleteCache(`PL:${userData.userId}`);

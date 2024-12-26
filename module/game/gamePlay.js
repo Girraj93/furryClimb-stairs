@@ -10,6 +10,11 @@ import {
 } from "../../utilities/common-function.js";
 import { addSettleBet, insertBets } from "../bet/bet-db.js";
 import { sendToQueue } from "../../utilities/amqp.js";
+import {
+  getLastMultiplier,
+  multipliers,
+} from "../../utilities/helper-function.js";
+import { appConfig } from "../../utilities/app-config.js";
 
 const gameState = {};
 let betObj = {};
@@ -25,6 +30,12 @@ export const startMatch = async (io, socket, betAmount, fireball) => {
   };
 
   await handleBet(io, socket, betAmount, betObj, fireball);
+  const selectedMultipliers = multipliers[Number(fireball)];
+
+  socket.emit("message", {
+    action: "multiplier",
+    msg: selectedMultipliers,
+  });
 };
 
 function generateFireballs(firstIndex, lastIndex, fireball) {
@@ -139,6 +150,7 @@ export const gamePlay = async (
   console.log(balls, "balls");
   gameState[user_id].bombs.push(...balls);
   gameState[user_id].stairs.push({ row: row, index: currentIndex });
+
   if (gameState[user_id].bombs.includes(Number(currentIndex))) {
     gameState[user_id].alive = false;
 
@@ -152,6 +164,11 @@ export const gamePlay = async (
     });
   }
 
+  if (Number(row) === Number(appConfig.totalRows)) {
+    let multiplier = getLastMultiplier(fireball);
+    await cashout(io, socket, multiplier);
+  }
+
   socket.emit("message", {
     action: "gameState",
     msg: gameState,
@@ -159,13 +176,16 @@ export const gamePlay = async (
 };
 
 export const cashout = async (io, socket, multiplier) => {
+  console.log("1");
   const user_id = socket.data?.userInfo.user_id;
   let playerDetails = await getCache(`PL:${user_id}`);
+  console.log("2");
   if (!playerDetails)
     return socket.emit("message", {
       action: "cashoutError",
       msg: "Invalid player details",
     });
+  console.log("2");
   const parsedPlayerDetails = JSON.parse(playerDetails);
   const settlements = [];
   const userBetData = betObj[parsedPlayerDetails.userId];
@@ -175,7 +195,7 @@ export const cashout = async (io, socket, multiplier) => {
       msg: "no bet data found",
     });
   }
-
+  console.log("3");
   let final_amount = Number(userBetData.betAmount) * Number(multiplier);
   const webhookData = await prepareDataForWebhook(
     {
