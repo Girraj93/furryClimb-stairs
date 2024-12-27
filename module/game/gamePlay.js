@@ -149,7 +149,7 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
     });
   }
 
-  if (Number(row) === Number(appConfig.totalRows)) {
+  if (Number(row) === appConfig.totalRows) {
     let multiplier = getLastMultiplier(fireball);
     socket.emit("message", {
       action: "gameState",

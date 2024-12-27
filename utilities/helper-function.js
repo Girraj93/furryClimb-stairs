@@ -67,8 +67,8 @@ export function getMultiplier(fireballNumber, betIndex) {
 // }
 
 export function allFireBalls(fireball, currentRow) {
-  let firstIndex = 0;
-  let lastIndex = 19;
+  let firstIndex = appConfig.firstIndex;
+  let lastIndex = appConfig.lastIndex;
   fireball = Number(fireball);
   currentRow = Number(currentRow);
   const totalRows = appConfig.totalRows;
@@ -175,8 +175,8 @@ export function getLastMultiplier(fireball) {
 // }
 
 export function generateFireballs(currentRow, fireball) {
-  const firstIndex = 0;
-  const lastIndex = 19;
+  const firstIndex = appConfig.firstIndex;
+  const lastIndex = appConfig.lastIndex;
   currentRow = Number(currentRow);
   fireball = Number(fireball);
 
