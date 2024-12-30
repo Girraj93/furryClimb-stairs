@@ -11,7 +11,7 @@ const {
   MAX_BET_AMOUNT,
   MIN_BET_AMOUNT,
   MAX_CASHOUT,
-  TOTAL_ROWS,
+  FINAL_ROW,
   FIRST_INDEX,
   LAST_INDEX,
   REDIS_HOST,
@@ -25,7 +25,7 @@ export const appConfig = {
   maxBetAmount: +MAX_BET_AMOUNT,
   maxCashoutAmount: +MAX_CASHOUT,
   maxBetLimit: +MAX_BETS_LIMIT,
-  totalRows: +TOTAL_ROWS,
+  finalRow: +FINAL_ROW,
   firstIndex: +FIRST_INDEX,
   lastIndex: +LAST_INDEX,
   dbConfig: {

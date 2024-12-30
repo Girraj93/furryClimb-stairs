@@ -29,19 +29,14 @@ export const startMatch = async (io, socket, betAmount, fireball) => {
     stairs: [],
     bombs: [],
     alive: true,
+    payout: 0,
   };
 
-  await handleBet(io, socket, betAmount, betObj, fireball);
-  // const selectedMultipliers = multipliers[Number(fireball)];
-
-  // socket.emit("message", {
-  //   action: "multiplier",
-  //   msg: selectedMultipliers,
-  // });
+  await handleBet(io, socket, betAmount, betObj);
 };
 
 //handle bets and Debit transation---------------------------------------
-export const handleBet = async (io, socket, betAmount, betObj, fireball) => {
+export const handleBet = async (io, socket, betAmount, betObj) => {
   const user_id = socket.data?.userInfo.user_id;
   let playerDetails = await getCache(`PL:${user_id}`);
   if (!playerDetails) return socket.emit("error", "Invalid Player Details");
@@ -58,6 +53,7 @@ export const handleBet = async (io, socket, betAmount, betObj, fireball) => {
     game_id,
     matchId,
   });
+
   if (Number(betAmount) > Number(balance)) {
     return socket.emit("message", {
       action: "betError",
@@ -93,9 +89,7 @@ export const handleBet = async (io, socket, betAmount, betObj, fireball) => {
     operator_id: operatorId,
     matchId,
     betAmount,
-    fireball,
   });
-
   parsedPlayerDetails.balance = Number(balance - Number(betAmount)).toFixed(2);
   await setCache(`PL:${userId}`, JSON.stringify(parsedPlayerDetails));
 
@@ -106,6 +100,7 @@ export const handleBet = async (io, socket, betAmount, betObj, fireball) => {
       userName: parsedPlayerDetails.name,
       operator_id: operatorId,
       balance: Number(parsedPlayerDetails.balance).toFixed(2),
+      avatarIndex: parsedPlayerDetails.image,
     },
   });
   socket.emit("message", {
@@ -114,7 +109,7 @@ export const handleBet = async (io, socket, betAmount, betObj, fireball) => {
   });
 };
 
-export const gamePlay = async (io, socket, currentIndex, row) => {
+export const gamePlay = async (io, socket, currentIndex, row, multiplier) => {
   const user_id = socket.data?.userInfo.user_id;
   if (!gameState[user_id]) {
     return socket.emit("message", {
@@ -127,9 +122,13 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
   console.log(balls, "balls");
   gameState[user_id].bombs.push(...balls);
   gameState[user_id].stairs.push({ row: row, index: currentIndex });
+  gameState[user_id].payout =
+    Number(betObj[user_id].betAmount) * Number(multiplier);
+  console.log(gameState[user_id]);
 
   if (gameState[user_id].bombs.includes(Number(currentIndex))) {
     gameState[user_id].alive = false;
+    gameState[user_id].payout = 0;
     const restFireBalls = allFireBalls(fireball, row);
     console.log(restFireBalls, "fifi");
 
@@ -149,8 +148,8 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
     });
   }
 
-  if (Number(row) === appConfig.totalRows) {
-    let multiplier = getLastMultiplier(fireball);
+  if (Number(row) === appConfig.finalRow) {
+    // let multiplier = getLastMultiplier(fireball);
     socket.emit("message", {
       action: "gameState",
       msg: gameState[user_id],
@@ -181,7 +180,7 @@ export const cashout = async (io, socket, multiplier) => {
       msg: "no bet data found",
     });
   }
-  let final_amount = Number(userBetData.betAmount) * Number(multiplier);
+  let final_amount = gameState[user_id].payout;
   const webhookData = await prepareDataForWebhook(
     {
       user_id,
@@ -206,6 +205,7 @@ export const cashout = async (io, socket, multiplier) => {
     bet_id: userBetData.bet_id,
     totalBetAmount: userBetData.betAmount,
     winAmount: final_amount,
+    multiplier: multiplier,
   });
   const cachedPlayerDetails = await getCache(`PL:${user_id}`);
   if (cachedPlayerDetails) {
@@ -224,7 +224,10 @@ export const cashout = async (io, socket, multiplier) => {
       action: "info",
       msg: {
         userId: user_id,
+        userName: parsedPlayerDetails.name,
+        operator_id: parsedPlayerDetails.operatorId,
         balance: parsedPlayerDetails.balance,
+        avatarIndex: parsedPlayerDetails.image,
       },
     });
 

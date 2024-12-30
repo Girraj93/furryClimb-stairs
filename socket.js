@@ -33,7 +33,6 @@ export const initSocket = (io) => {
         operator_id: userData.operatorId,
         balance: Number(userData.balance).toFixed(2),
         avatarIndex: userData.image,
-        createdTimeStamps: Date.now(),
       },
     });
     await setCache(

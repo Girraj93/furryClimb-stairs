@@ -10,6 +10,7 @@ use `furryclimb`;
    `match_id` varchar(255) DEFAULT NULL,
    `bet_amount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
    `win_amount` decimal(10, 2) DEFAULT 0.00,
+   `multiplier`  decimal(10, 2) DEFAULT 0.00,
    `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
    PRIMARY KEY (`settlement_id`)
  );
@@ -21,7 +22,6 @@ CREATE TABLE IF NOT EXISTS `bets` (
    `operator_id` varchar(255) DEFAULT NULL,
    `match_id` varchar(255) DEFAULT NULL,
    `bet_amount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-   `fireball` varchar(255) NOT NULL,
    `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
  ); 
@@ -32,7 +32,6 @@ ADD INDEX `inx_user_id` (`user_id` ASC) INVISIBLE,
 ADD INDEX `inx_operator_id` (`operator_id` ASC) VISIBLE,
 ADD INDEX `inx_match_id` (`match_id` ASC) VISIBLE, 
 ADD INDEX `inx_bet_amount` (`bet_amount` ASC) INVISIBLE, 
-ADD INDEX `inx_fireball` (`fireball_number` ASC) INVISIBLE, 
 ADD INDEX `inx_created_at` (`created_at` ASC) VISIBLE;
 
 ALTER TABLE `furryclimb`.`settlement` 
@@ -42,4 +41,5 @@ ADD INDEX `inx_operator_id` (`operator_id` ASC) VISIBLE,
 ADD INDEX `inx_match_id` (`match_id` ASC) VISIBLE, 
 ADD INDEX `inx_bet_amount` (`bet_amount` ASC) INVISIBLE,
 ADD INDEX `inx_win_amount` (`win_amount` ASC) INVISIBLE, 
+ADD INDEX `inx_win_amount` (`multiplier` ASC) INVISIBLE, 
 ADD INDEX `inx_created_at` (`created_at` ASC) VISIBLE;
