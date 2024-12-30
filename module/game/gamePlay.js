@@ -155,6 +155,7 @@ export const gamePlay = async (io, socket, currentIndex, row, multiplier) => {
       msg: gameState[user_id],
     });
     await cashout(io, socket, multiplier);
+    return;
   }
 
   socket.emit("message", {
