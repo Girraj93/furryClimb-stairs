@@ -121,7 +121,10 @@ export const gamePlay = async (io, socket, currentIndex, row, multiplier) => {
   const balls = generateFireballs(row, fireball);
   console.log(balls, "balls");
   gameState[user_id].bombs.push(...balls);
-  gameState[user_id].stairs.push({ row: row, index: currentIndex });
+  gameState[user_id].stairs.push({
+    row: Number(row),
+    index: Number(currentIndex),
+  });
   gameState[user_id].payout =
     Number(betObj[user_id].betAmount) * Number(multiplier);
   console.log(gameState[user_id]);
@@ -137,14 +140,11 @@ export const gamePlay = async (io, socket, currentIndex, row, multiplier) => {
       msg: gameState[user_id],
     });
 
-    socket.emit("message", {
-      action: "restFireBalls",
-      msg: restFireBalls,
-    });
     delete gameState[user_id];
     return socket.emit("message", {
       action: "gameOver",
       msg: "You lose! You hit a fireball!",
+      restfireball: restFireBalls,
     });
   }
 

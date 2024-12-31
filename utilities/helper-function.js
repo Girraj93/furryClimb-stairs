@@ -66,49 +66,6 @@ export function getMultiplier(fireballNumber, betIndex) {
 //   return fireballsByRow;
 // }
 
-export function allFireBalls(fireball, currentRow) {
-  let firstIndex = appConfig.firstIndex;
-  let lastIndex = appConfig.lastIndex;
-  fireball = Number(fireball);
-  currentRow = Number(currentRow);
-  const totalRows = appConfig.totalRows;
-
-  if (fireball > lastIndex - firstIndex + 1) {
-    throw new Error("Fireball count exceeds the available range.");
-  }
-
-  const fireballsByRow = {};
-
-  for (let row = currentRow + 1; row <= totalRows; row++) {
-    const hiddenColumns = new Set(hiddenColumnsPerRow[row] || []);
-    const validColumns = [];
-
-    for (let col = firstIndex; col <= lastIndex; col++) {
-      if (!hiddenColumns.has(col)) {
-        validColumns.push(col);
-      }
-    }
-
-    if (fireball > validColumns.length) {
-      throw new Error(
-        `Fireball count exceeds the available valid columns for row ${row}.`
-      );
-    }
-
-    // Generate fireballs for this row
-    const totalFireballs = new Set();
-    while (totalFireballs.size < fireball) {
-      const randomIndex =
-        validColumns[Math.floor(Math.random() * validColumns.length)];
-      totalFireballs.add(randomIndex);
-    }
-
-    fireballsByRow[row] = Array.from(totalFireballs);
-  }
-
-  return fireballsByRow;
-}
-
 export const hiddenColumnsPerRow = [
   [],
   [0],
@@ -146,6 +103,49 @@ export const multipliers = {
     271.03, 717.27,
   ],
 };
+
+export function allFireBalls(fireball, currentRow) {
+  let firstIndex = appConfig.firstIndex;
+  let lastIndex = appConfig.lastIndex;
+  fireball = Number(fireball);
+  currentRow = Number(currentRow);
+  const totalRows = appConfig.finalRow;
+
+  if (fireball > lastIndex - firstIndex + 1) {
+    throw new Error("Fireball count exceeds the available range.");
+  }
+
+  const fireballsByRow = {};
+
+  for (let row = currentRow + 1; row <= totalRows; row++) {
+    const hiddenColumns = new Set(hiddenColumnsPerRow[row] || []);
+    const validColumns = [];
+
+    for (let col = firstIndex; col <= lastIndex; col++) {
+      if (!hiddenColumns.has(col)) {
+        validColumns.push(col);
+      }
+    }
+
+    if (fireball > validColumns.length) {
+      throw new Error(
+        `Fireball count exceeds the available valid columns for row ${row}.`
+      );
+    }
+
+    // Generate fireballs for this row
+    const totalFireballs = new Set();
+    while (totalFireballs.size < fireball) {
+      const randomIndex =
+        validColumns[Math.floor(Math.random() * validColumns.length)];
+      totalFireballs.add(randomIndex);
+    }
+
+    fireballsByRow[row] = Array.from(totalFireballs);
+  }
+
+  return fireballsByRow;
+}
 
 export function getLastMultiplier(fireball) {
   fireball = Number(fireball);
