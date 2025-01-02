@@ -41,5 +41,5 @@ ADD INDEX `inx_operator_id` (`operator_id` ASC) VISIBLE,
 ADD INDEX `inx_match_id` (`match_id` ASC) VISIBLE, 
 ADD INDEX `inx_bet_amount` (`bet_amount` ASC) INVISIBLE,
 ADD INDEX `inx_win_amount` (`win_amount` ASC) INVISIBLE, 
-ADD INDEX `inx_win_amount` (`multiplier` ASC) INVISIBLE, 
+ADD INDEX `inx_multiplier` (`multiplier` ASC) INVISIBLE, 
 ADD INDEX `inx_created_at` (`created_at` ASC) VISIBLE;

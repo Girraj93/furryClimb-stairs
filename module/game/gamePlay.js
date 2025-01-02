@@ -144,6 +144,7 @@ export const gamePlay = async (io, socket, currentIndex, row, multiplier) => {
     row: Number(row),
     index: Number(currentIndex),
   });
+
   gameState[user_id].payout =
     Number(betObj[user_id].betAmount) * Number(multiplier);
   console.log(gameState[user_id]);
