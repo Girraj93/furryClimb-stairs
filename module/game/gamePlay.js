@@ -27,7 +27,7 @@ export const startMatch = async (io, socket, betAmount, fireball) => {
   gameState[userId] = {
     level: fireball,
     stairs: [],
-    bombs: [],
+    bombs: {},
     alive: true,
     payout: 0,
   };
@@ -117,10 +117,29 @@ export const gamePlay = async (io, socket, currentIndex, row, multiplier) => {
       msg: "User not found in game state",
     });
   }
+  if (row > appConfig.finalRow) {
+    return socket.emit("message", {
+      action: "gameError",
+      msg: "Row cannot be greater than finalRow",
+    });
+  }
   const fireball = gameState[user_id].level;
+
+  if (!multipliers[Number(fireball)].includes(Number(multiplier))) {
+    return socket.emit("message", {
+      action: "multiplierError",
+      msg: "multiplier not matched",
+    });
+  }
   const balls = generateFireballs(row, fireball);
-  console.log(balls, "balls");
-  gameState[user_id].bombs.push(...balls);
+  if (!gameState[user_id].bombs) {
+    gameState[user_id].bombs = {};
+  }
+  if (!gameState[user_id].bombs[row]) {
+    gameState[user_id].bombs[row] = [];
+  }
+  gameState[user_id].bombs[row].push(...balls);
+
   gameState[user_id].stairs.push({
     row: Number(row),
     index: Number(currentIndex),
@@ -129,7 +148,7 @@ export const gamePlay = async (io, socket, currentIndex, row, multiplier) => {
     Number(betObj[user_id].betAmount) * Number(multiplier);
   console.log(gameState[user_id]);
 
-  if (gameState[user_id].bombs.includes(Number(currentIndex))) {
+  if (gameState[user_id].bombs[row].includes(Number(currentIndex))) {
     gameState[user_id].alive = false;
     gameState[user_id].payout = 0;
     const restFireBalls = allFireBalls(fireball, row);
