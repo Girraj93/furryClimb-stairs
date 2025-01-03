@@ -144,7 +144,7 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
   });
 
   gameState[user_id].payout =
-    Number(betObj[user_id].betAmount) * Number(multiplier);
+    Number(betObj[user_id]?.betAmount) * Number(multiplier);
   console.log(gameState[user_id]);
 
   if (gameState[user_id].bombs[row].includes(Number(currentIndex))) {
