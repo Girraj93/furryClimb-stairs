@@ -26,20 +26,6 @@ export const logEventAndEmitResponse = (req, res, event, socket) => {
   return socket.emit("betError", res);
 };
 
-export function getMultiplier(fireballNumber, betIndex) {
-  if (fireballNumber < 1 || fireballNumber > fireballMatrix.length) {
-    socket.emit(
-      "error",
-      "Invalid fireball number. It must be between 1 and 13"
-    );
-  }
-  const row = fireballMatrix[fireballNumber - 1];
-  if (betIndex < 0 || betIndex >= row.length) {
-    socket.emit("error", "Invalid bet index. It must be between 0 and 20.");
-  }
-  return row[betIndex];
-}
-
 // export function allFireBalls(firstIndex, lastIndex, fireball, currentRow) {
 //   firstIndex = Number(firstIndex);
 //   lastIndex = Number(lastIndex);
@@ -204,3 +190,11 @@ export function generateFireballs(currentRow, fireball) {
   }
   return Array.from(totalFireballs);
 }
+
+export const getMultiplier = (fireball, row) => {
+  fireball = Number(fireball);
+  row = Number(row);
+  let multiplier = multipliers[fireball];
+  multiplier = multiplier[row];
+  return multiplier;
+};

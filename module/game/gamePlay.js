@@ -14,6 +14,7 @@ import {
   allFireBalls,
   generateFireballs,
   getLastMultiplier,
+  getMultiplier,
   multipliers,
 } from "../../utilities/helper-function.js";
 import { appConfig } from "../../utilities/app-config.js";
@@ -30,6 +31,7 @@ export const startMatch = async (io, socket, betAmount, fireball) => {
     bombs: {},
     alive: true,
     payout: 0,
+    multiplier: 0,
   };
 
   await handleBet(io, socket, betAmount, betObj);
@@ -109,7 +111,7 @@ export const handleBet = async (io, socket, betAmount, betObj) => {
   });
 };
 
-export const gamePlay = async (io, socket, currentIndex, row, multiplier) => {
+export const gamePlay = async (io, socket, currentIndex, row) => {
   const user_id = socket.data?.userInfo.user_id;
   if (!gameState[user_id]) {
     return socket.emit("message", {
@@ -124,13 +126,9 @@ export const gamePlay = async (io, socket, currentIndex, row, multiplier) => {
     });
   }
   const fireball = gameState[user_id].level;
+  const multiplier = getMultiplier(fireball, row);
+  gameState[user_id].multiplier = multiplier;
 
-  if (!multipliers[Number(fireball)].includes(Number(multiplier))) {
-    return socket.emit("message", {
-      action: "multiplierError",
-      msg: "multiplier not matched",
-    });
-  }
   const balls = generateFireballs(row, fireball);
   if (!gameState[user_id].bombs) {
     gameState[user_id].bombs = {};
@@ -174,7 +172,7 @@ export const gamePlay = async (io, socket, currentIndex, row, multiplier) => {
       action: "gameState",
       msg: gameState[user_id],
     });
-    await cashout(io, socket, multiplier);
+    await cashout(io, socket);
     return;
   }
 
@@ -184,7 +182,7 @@ export const gamePlay = async (io, socket, currentIndex, row, multiplier) => {
   });
 };
 
-export const cashout = async (io, socket, multiplier) => {
+export const cashout = async (io, socket) => {
   const user_id = socket.data?.userInfo.user_id;
   let playerDetails = await getCache(`PL:${user_id}`);
   if (!playerDetails)
@@ -193,6 +191,7 @@ export const cashout = async (io, socket, multiplier) => {
       msg: "Invalid player details",
     });
   const parsedPlayerDetails = JSON.parse(playerDetails);
+  const multiplier = gameState[user_id].multiplier;
   const settlements = [];
   const userBetData = betObj[parsedPlayerDetails.userId];
   if (!userBetData) {

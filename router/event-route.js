@@ -6,12 +6,12 @@ export const registerEvents = async (io, socket) => {
       //start:betAmount:fireball
       case "start":
         return startMatch(io, socket, event[1], event[2]);
-      //CO:multiplier
+      //CO
       case "CO":
-        return cashout(io, socket, event[1]);
+        return cashout(io, socket);
       case "GP":
-        //GP:currentindex:row:multiplier
-        return gamePlay(io, socket, event[1], event[2], event[3]);
+        //GP:currentindex:row
+        return gamePlay(io, socket, event[1], event[2]);
     }
   });
 };
