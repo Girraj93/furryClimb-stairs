@@ -8,7 +8,7 @@ import {
   postDataToSourceForBet,
   prepareDataForWebhook,
 } from "../../utilities/common-function.js";
-import { addSettleBet, insertBets } from "../bet/bet-db.js";
+import { addSettleBet, insertBets, insertMatchData } from "../bet/bet-db.js";
 import { sendToQueue } from "../../utilities/amqp.js";
 import {
   allFireBalls,
@@ -191,7 +191,7 @@ export const cashout = async (io, socket) => {
       msg: "Invalid player details",
     });
   const parsedPlayerDetails = JSON.parse(playerDetails);
-  const multiplier = gameState[user_id].multiplier;
+  const multiplier = gameState[user_id]?.multiplier;
   const settlements = [];
   const userBetData = betObj[parsedPlayerDetails.userId];
   if (!userBetData) {
@@ -225,6 +225,15 @@ export const cashout = async (io, socket) => {
     bet_id: userBetData.bet_id,
     totalBetAmount: userBetData.betAmount,
     winAmount: final_amount,
+    multiplier: multiplier,
+  });
+  insertMatchData({
+    bet_id: userBetData.bet_id,
+    user_id,
+    operator_id: parsedPlayerDetails.operatorId,
+    match_id: userBetData.matchId,
+    bet_amount: userBetData.betAmount,
+    win_amount: final_amount,
     multiplier: multiplier,
   });
   const cachedPlayerDetails = await getCache(`PL:${user_id}`);
