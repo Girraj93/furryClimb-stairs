@@ -29,7 +29,6 @@ CREATE TABLE IF NOT EXISTS `bets` (
 CREATE TABLE IF NOT EXISTS `match_round` (
     `id` int primary key  auto_increment,
    `bet_id` varchar(255) NOT NULL,
-   `user_name` varchar(50) NOT NULL,
    `user_id` varchar(255) NOT NULL,
    `operator_id` varchar(255) DEFAULT NULL,
    `match_id` varchar(255) DEFAULT NULL,
@@ -59,7 +58,6 @@ ADD INDEX `inx_created_at` (`created_at` ASC) VISIBLE;
 
 ALTER TABLE `furryclimb`.`match_round` 
 ADD INDEX `inx_bet_id` (`bet_id` ASC) VISIBLE, 
-ADD INDEX `inx_user_name` (`user_name` ASC) INVISIBLE, 
 ADD INDEX `inx_user_id` (`user_id` ASC) INVISIBLE, 
 ADD INDEX `inx_operator_id` (`operator_id` ASC) VISIBLE, 
 ADD INDEX `inx_match_id` (`match_id` ASC) VISIBLE, 
