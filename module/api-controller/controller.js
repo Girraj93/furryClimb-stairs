@@ -65,8 +65,7 @@ export const singleMatchHistory = async (req, res) => {
         .status(404)
         .json({ message: "No single match history found for this user" });
     }
-    const isWin = Number(settlements[0].Total_WinAmount) > 0;
-    const status = isWin ? "WIN" : "LOSS";
+    const status = Number(settlements[0].Total_WinAmount) > 0 ? "WIN" : "LOSS";
     return res.json({
       message: "User single match history fetched successfully",
       data: { ...settlements[0], status },
