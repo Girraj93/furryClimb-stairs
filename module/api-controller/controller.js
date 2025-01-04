@@ -53,22 +53,20 @@ export const singleMatchHistory = async (req, res) => {
         .status(400)
         .json({ message: "user_id, Match ID, and operator_id are required" });
     }
-    const settlements = await read(
+    const [settlement] = await read(
       `SELECT match_id AS Round_ID, user_id AS User_ID,operator_id AS OperatorId,
        bet_amount AS Total_BetAmount,win_amount AS Total_WinAmount,
        multiplier,NOW() AS Time FROM settlement
        WHERE user_id = ? AND operator_id = ? AND match_id = ?`,
       [user_id, operator_id, match_id]
     );
-    if (!settlements.length) {
-      return res
-        .status(404)
-        .json({ message: "No single match history found for this user" });
+    if (!settlement) {
+      return res.status(404).json({ message: "No single match history found for this user" });
     }
-    const status = Number(settlements[0].Total_WinAmount) > 0 ? "WIN" : "LOSS";
+    const status = Number(settlement.Total_WinAmount) > 0 ? "WIN" : "LOSS";
     return res.json({
       message: "User single match history fetched successfully",
-      data: { ...settlements[0], status },
+      data: { ...settlement, status },
     });
   } catch (error) {
     console.error("Error fetching user single match history:", error);
