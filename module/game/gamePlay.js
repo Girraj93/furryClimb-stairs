@@ -19,7 +19,7 @@ import {
 } from "../../utilities/helper-function.js";
 import { appConfig } from "../../utilities/app-config.js";
 
-const gameState = {};
+export const gameState = {};
 let betObj = {};
 
 export const startMatch = async (io, socket, betAmount, fireball) => {
@@ -127,6 +127,7 @@ export const handleBet = async (io, socket, betAmount) => {
 };
 
 export const gamePlay = async (io, socket, currentIndex, row) => {
+  console.log("called");
   const user_id = socket.data?.userInfo.user_id;
   if (!gameState[user_id]) {
     return socket.emit("message", {
@@ -146,6 +147,7 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
       msg: "Row cannot be greater than finalRow",
     });
   }
+  console.log("called");
   const fireball = gameState[user_id].level;
   const multiplier = getMultiplier(fireball, row);
   gameState[user_id].multiplier = multiplier;

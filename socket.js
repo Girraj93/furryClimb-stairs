@@ -1,3 +1,4 @@
+import { gameState } from "./module/game/gamePlay.js";
 import { getUserDataFromSource } from "./module/players/player-data.js";
 import { registerEvents } from "./router/event-route.js";
 import {
@@ -44,6 +45,13 @@ export const initSocket = (io) => {
       action: "gameSettings",
       msg: { hiddenColumnsPerRow, multipliers },
     });
+
+    if (gameState[userData.userId]) {
+      socket.emit("message", {
+        action: "reconnection",
+        msg: gameState[userData.userId],
+      });
+    }
     registerEvents(io, socket);
     socket.on("disconnect", async () => {
       await deleteCache(`PL:${userData.userId}`);
