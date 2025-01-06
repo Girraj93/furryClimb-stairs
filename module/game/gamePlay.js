@@ -8,7 +8,7 @@ import {
   postDataToSourceForBet,
   prepareDataForWebhook,
 } from "../../utilities/common-function.js";
-import { addSettleBet, insertBets, insertMatchData } from "../bet/bet-db.js";
+import { addSettleBet, insertBets } from "../bet/bet-db.js";
 import { sendToQueue } from "../../utilities/amqp.js";
 import {
   allFireBalls,
@@ -33,12 +33,13 @@ export const startMatch = async (io, socket, betAmount, fireball) => {
     payout: 0,
     multiplier: 0,
   };
-
-  await handleBet(io, socket, betAmount, betObj);
+  if (!betObj[userId]) {
+    await handleBet(io, socket, betAmount);
+  }
 };
 
 //handle bets and Debit transation---------------------------------------
-export const handleBet = async (io, socket, betAmount, betObj) => {
+export const handleBet = async (io, socket, betAmount) => {
   const user_id = socket.data?.userInfo.user_id;
   let playerDetails = await getCache(`PL:${user_id}`);
   if (!playerDetails) return socket.emit("error", "Invalid Player Details");
@@ -55,6 +56,20 @@ export const handleBet = async (io, socket, betAmount, betObj) => {
     game_id,
     matchId,
   });
+
+  if (Number(betAmount) < appConfig.minBetAmount) {
+    return socket.emit("message", {
+      action: "betError",
+      msg: "Bet Amount cannot be less than Rs.10",
+    });
+  }
+
+  if (Number(betAmount) > appConfig.maxBetAmount) {
+    return socket.emit("message", {
+      action: "betError",
+      msg: "Bet Amount cannot be grater than Rs.5000",
+    });
+  }
 
   if (Number(betAmount) > Number(balance)) {
     return socket.emit("message", {
@@ -119,6 +134,12 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
       msg: "User not found in game state",
     });
   }
+  if (!row) {
+    return socket.emit("message", {
+      action: "gameError",
+      msg: "Undefined Row",
+    });
+  }
   if (row > appConfig.finalRow) {
     return socket.emit("message", {
       action: "gameError",
@@ -143,9 +164,13 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
     index: Number(currentIndex),
   });
 
-  gameState[user_id].payout =
-    Number(betObj[user_id]?.betAmount) * Number(multiplier);
-  console.log(gameState[user_id]);
+  gameState[user_id].payout = (
+    Number(betObj[user_id]?.betAmount) * Number(multiplier)
+  ).toFixed(2);
+
+  if (gameState[user_id].payout > appConfig.maxWinAmount) {
+    gameState[user_id].payout = appConfig.maxWinAmount;
+  }
 
   if (gameState[user_id].bombs[row].includes(Number(currentIndex))) {
     gameState[user_id].alive = false;
@@ -159,6 +184,7 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
     });
 
     delete gameState[user_id];
+    delete betObj[user_id];
     return socket.emit("message", {
       action: "gameOver",
       msg: "You lose! You hit a fireball!",
@@ -227,15 +253,7 @@ export const cashout = async (io, socket) => {
     winAmount: final_amount,
     multiplier: multiplier,
   });
-  insertMatchData({
-    bet_id: userBetData.bet_id,
-    user_id,
-    operator_id: parsedPlayerDetails.operatorId,
-    match_id: userBetData.matchId,
-    bet_amount: userBetData.betAmount,
-    win_amount: final_amount,
-    multiplier: multiplier,
-  });
+
   const cachedPlayerDetails = await getCache(`PL:${user_id}`);
   if (cachedPlayerDetails) {
     const parsedPlayerDetails = JSON.parse(cachedPlayerDetails);
