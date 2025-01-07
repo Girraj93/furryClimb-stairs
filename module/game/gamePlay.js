@@ -55,6 +55,7 @@ export const handleBet = async (io, socket, betAmount) => {
     socket_id: parsedPlayerDetails.socketId,
     game_id,
     matchId,
+    betConfirm: false,
   });
 
   if (Number(betAmount) < appConfig.minBetAmount) {
@@ -98,6 +99,7 @@ export const handleBet = async (io, socket, betAmount) => {
     });
   } catch (err) {
     JSON.stringify({ req: bet_id, res: "bets cancelled by upstream" });
+    delete betObj[userId];
     return socket.emit("error", "Bet Cancelled by Upstream Server");
   }
   await insertBets({
@@ -124,11 +126,18 @@ export const handleBet = async (io, socket, betAmount) => {
     action: "bet",
     msg: "Bet placed Successfully",
   });
+
+  betObj[userId].betConfirm = true;
 };
 
 export const gamePlay = async (io, socket, currentIndex, row) => {
-  console.log("called");
   const user_id = socket.data?.userInfo.user_id;
+  if (betObj[user_id]?.betConfirm === false) {
+    return socket.emit("message", {
+      action: "gameError",
+      msg: "Bet not confirmed",
+    });
+  }
   if (!gameState[user_id]) {
     return socket.emit("message", {
       action: "gameError",
