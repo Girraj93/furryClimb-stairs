@@ -1,16 +1,16 @@
 import express from "express";
 import {
-  leaderboard,
+  topBets,
   singleMatchHistory,
-  userMatchHistory,
+  myBets,
 } from "../module/api-controller/controller.js";
 const router = express.Router();
 
-router.get("/leaderboard", (req, res) => {
-  leaderboard(req, res);
+router.get("/top-bets", (req, res) => {
+  topBets(req, res);
 });
-router.get("/match-history", (req, res) => {
-  userMatchHistory(req, res);
+router.get("/my-bets", (req, res) => {
+  myBets(req, res);
 });
 
 router.get("/single-match", (req, res) => {

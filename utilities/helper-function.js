@@ -26,32 +26,6 @@ export const logEventAndEmitResponse = (req, res, event, socket) => {
   return socket.emit("betError", res);
 };
 
-// export function allFireBalls(firstIndex, lastIndex, fireball, currentRow) {
-//   firstIndex = Number(firstIndex);
-//   lastIndex = Number(lastIndex);
-//   fireball = Number(fireball);
-//   currentRow = Number(currentRow);
-//   totalRows = appConfig.totalRows;
-
-//   if (fireball > lastIndex - firstIndex + 1) {
-//     throw new Error("Fireball count exceeds the available range.");
-//   }
-
-//   const fireballsByRow = {};
-
-//   for (let row = currentRow + 1; row <= totalRows; row++) {
-//     const totalFireballs = new Set();
-//     while (totalFireballs.size < fireball) {
-//       const randomIndex =
-//         Math.floor(Math.random() * (lastIndex - firstIndex + 1)) + firstIndex;
-//       totalFireballs.add(randomIndex);
-//     }
-//     fireballsByRow[row] = Array.from(totalFireballs);
-//   }
-
-//   return fireballsByRow;
-// }
-
 export const hiddenColumnsPerRow = [
   [],
   [0],

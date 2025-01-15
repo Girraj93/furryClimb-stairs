@@ -20,7 +20,7 @@ import {
 import { appConfig } from "../../utilities/app-config.js";
 
 export const gameState = {};
-let betObj = {};
+export let betObj = {};
 
 export const startMatch = async (io, socket, betAmount, fireball) => {
   console.log(betAmount, fireball);
@@ -40,8 +40,11 @@ export const startMatch = async (io, socket, betAmount, fireball) => {
 
 //handle bets and Debit transation---------------------------------------
 export const handleBet = async (io, socket, betAmount) => {
+  console.log("had,ebet", betAmount);
   const user_id = socket.data?.userInfo.user_id;
-  let playerDetails = await getCache(`PL:${user_id}`);
+  let playerDetails = await getCache(
+    `PL:${user_id}:${socket.data.userInfo.operatorId}`
+  );
   if (!playerDetails) return socket.emit("error", "Invalid Player Details");
   const parsedPlayerDetails = JSON.parse(playerDetails);
   const { userId, operatorId, token, game_id, balance } = parsedPlayerDetails;
@@ -55,7 +58,6 @@ export const handleBet = async (io, socket, betAmount) => {
     socket_id: parsedPlayerDetails.socketId,
     game_id,
     matchId,
-    betConfirm: false,
   });
 
   if (Number(betAmount) < appConfig.minBetAmount) {
@@ -90,7 +92,6 @@ export const handleBet = async (io, socket, betAmount) => {
     socket
   );
   betObj[userId].txn_id = webhookData.txn_id;
-
   try {
     await postDataToSourceForBet({
       webhookData,
@@ -100,6 +101,7 @@ export const handleBet = async (io, socket, betAmount) => {
   } catch (err) {
     JSON.stringify({ req: bet_id, res: "bets cancelled by upstream" });
     delete betObj[userId];
+    delete gameState[userId];
     return socket.emit("error", "Bet Cancelled by Upstream Server");
   }
   await insertBets({
@@ -110,7 +112,10 @@ export const handleBet = async (io, socket, betAmount) => {
     betAmount,
   });
   parsedPlayerDetails.balance = Number(balance - Number(betAmount)).toFixed(2);
-  await setCache(`PL:${userId}`, JSON.stringify(parsedPlayerDetails));
+  await setCache(
+    `PL:${userId}:${operatorId}`,
+    JSON.stringify(parsedPlayerDetails)
+  );
 
   socket.emit("message", {
     action: "info",
@@ -126,18 +131,10 @@ export const handleBet = async (io, socket, betAmount) => {
     action: "bet",
     msg: "Bet placed Successfully",
   });
-
-  betObj[userId].betConfirm = true;
 };
 
 export const gamePlay = async (io, socket, currentIndex, row) => {
   const user_id = socket.data?.userInfo.user_id;
-  if (betObj[user_id]?.betConfirm === false) {
-    return socket.emit("message", {
-      action: "gameError",
-      msg: "Bet not confirmed",
-    });
-  }
   if (!gameState[user_id]) {
     return socket.emit("message", {
       action: "gameError",
@@ -221,7 +218,9 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
 
 export const cashout = async (io, socket) => {
   const user_id = socket.data?.userInfo.user_id;
-  let playerDetails = await getCache(`PL:${user_id}`);
+  let playerDetails = await getCache(
+    `PL:${user_id}:${socket.data.userInfo.operatorId}`
+  );
   if (!playerDetails)
     return socket.emit("message", {
       action: "cashoutError",
@@ -230,7 +229,7 @@ export const cashout = async (io, socket) => {
   const parsedPlayerDetails = JSON.parse(playerDetails);
   const multiplier = gameState[user_id]?.multiplier;
   const settlements = [];
-  const userBetData = betObj[parsedPlayerDetails.userId];
+  const userBetData = betObj[user_id];
   if (!userBetData) {
     return io.to(parsedPlayerDetails.socketId).emit("message", {
       action: "betError",
@@ -265,7 +264,9 @@ export const cashout = async (io, socket) => {
     multiplier: multiplier,
   });
 
-  const cachedPlayerDetails = await getCache(`PL:${user_id}`);
+  const cachedPlayerDetails = await getCache(
+    `PL:${user_id}:${socket.data.userInfo.operatorId}`
+  );
   if (cachedPlayerDetails) {
     const parsedPlayerDetails = JSON.parse(cachedPlayerDetails);
     console.log(parsedPlayerDetails.balance, "before update");
@@ -273,7 +274,10 @@ export const cashout = async (io, socket) => {
       Number(parsedPlayerDetails.balance) + Number(final_amount)
     ).toFixed(2);
     console.log(parsedPlayerDetails.balance, "after update");
-    await setCache(`PL:${user_id}`, JSON.stringify(parsedPlayerDetails));
+    await setCache(
+      `PL:${user_id}:${socket.data.userInfo.operatorId}`,
+      JSON.stringify(parsedPlayerDetails)
+    );
 
     delete betObj[user_id];
     delete gameState[user_id];

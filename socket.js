@@ -1,4 +1,4 @@
-import { gameState } from "./module/game/gamePlay.js";
+import { betObj, gameState } from "./module/game/gamePlay.js";
 import { getUserDataFromSource } from "./module/players/player-data.js";
 import { registerEvents } from "./router/event-route.js";
 import {
@@ -37,7 +37,7 @@ export const initSocket = (io) => {
       },
     });
     await setCache(
-      `PL:${userData.userId}`,
+      `PL:${userData.userId}:${userData.operatorId}`,
       JSON.stringify({ ...userData, socketId: socket.id }),
       3600
     );
@@ -50,11 +50,12 @@ export const initSocket = (io) => {
       socket.emit("message", {
         action: "reconnection",
         msg: gameState[userData.userId],
+        betAmount: betObj[userData.userId]?.betAmount,
       });
     }
     registerEvents(io, socket);
     socket.on("disconnect", async () => {
-      await deleteCache(`PL:${userData.userId}`);
+      await deleteCache(`PL:${userData.userId}:${userData.operatorId}`);
     });
     socket.on("error", (error) => {
       console.error(`Socket error: ${socket.id}. Error: ${error.message}`);

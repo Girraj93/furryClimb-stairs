@@ -10,7 +10,7 @@ const {
   DB_RETRY_INTERVAL,
   MAX_BET_AMOUNT,
   MIN_BET_AMOUNT,
-  MAX_WIN_AMOUNT,
+  MAX_CASHOUT,
   FINAL_ROW,
   FIRST_INDEX,
   LAST_INDEX,
@@ -23,7 +23,7 @@ const {
 export const appConfig = {
   minBetAmount: +MIN_BET_AMOUNT,
   maxBetAmount: +MAX_BET_AMOUNT,
-  maxWinAmount: +MAX_WIN_AMOUNT,
+  maxCashoutAmount: +MAX_CASHOUT,
   maxBetLimit: +MAX_BETS_LIMIT,
   finalRow: +FINAL_ROW,
   firstIndex: +FIRST_INDEX,
