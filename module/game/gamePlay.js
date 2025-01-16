@@ -15,7 +15,6 @@ import {
   generateFireballs,
   getLastMultiplier,
   getMultiplier,
-  multipliers,
 } from "../../utilities/helper-function.js";
 import { appConfig } from "../../utilities/app-config.js";
 
@@ -155,10 +154,11 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
   }
   console.log("called");
   const fireball = gameState[user_id].level;
-  const multiplier = getMultiplier(fireball, row);
+  const multiplier = await getMultiplier(fireball, row);
+  console.log(multiplier, "in gameplay");
   gameState[user_id].multiplier = multiplier;
 
-  const balls = generateFireballs(row, fireball);
+  const balls = await generateFireballs(row, fireball);
   if (!gameState[user_id].bombs) {
     gameState[user_id].bombs = {};
   }
@@ -183,7 +183,7 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
   if (gameState[user_id].bombs[row].includes(Number(currentIndex))) {
     gameState[user_id].alive = false;
     gameState[user_id].payout = 0;
-    const restFireBalls = allFireBalls(fireball, row);
+    const restFireBalls = await allFireBalls(fireball, row);
     console.log(restFireBalls, "fifi");
 
     socket.emit("message", {

@@ -1,10 +1,7 @@
 import { betObj, gameState } from "./module/game/gamePlay.js";
 import { getUserDataFromSource } from "./module/players/player-data.js";
 import { registerEvents } from "./router/event-route.js";
-import {
-  hiddenColumnsPerRow,
-  multipliers,
-} from "./utilities/helper-function.js";
+import { gameData, hiddenTiles } from "./utilities/helper-function.js";
 import {
   deleteCache,
   getCache,
@@ -41,6 +38,8 @@ export const initSocket = (io) => {
       JSON.stringify({ ...userData, socketId: socket.id }),
       3600
     );
+    const hiddenColumnsPerRow = await hiddenTiles();
+    const multipliers = await gameData();
     socket.emit("message", {
       action: "gameSettings",
       msg: { hiddenColumnsPerRow, multipliers },
