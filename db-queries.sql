@@ -26,6 +26,18 @@ CREATE TABLE IF NOT EXISTS `bets` (
    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
  ); 
 
+
+ CREATE TABLE IF NOT EXISTS `match_round` (
+   `id` int primary key  auto_increment,
+   `user_id` varchar(255) NOT NULL,
+   `operator_id` varchar(255) DEFAULT NULL,
+   `match_id` varchar(255) DEFAULT NULL,
+   `game_data`JSON NOT NULL,
+   `is_winner` BOOLEAN DEFAULT FALSE,
+   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+ ); 
+
 CREATE TABLE IF NOT EXISTS `game_templates` (
    `id` INT NOT NULL AUTO_INCREMENT,
    `multipliers` JSON NOT NULL, 
@@ -79,4 +91,10 @@ ADD INDEX `inx_match_id` (`match_id` ASC) VISIBLE,
 ADD INDEX `inx_bet_amount` (`bet_amount` ASC) INVISIBLE,
 ADD INDEX `inx_win_amount` (`win_amount` ASC) INVISIBLE, 
 ADD INDEX `inx_multiplier` (`multiplier` ASC) INVISIBLE, 
+ADD INDEX `inx_created_at` (`created_at` ASC) VISIBLE;
+
+ALTER TABLE `furryclimb`.`match_round` 
+ADD INDEX `inx_user_id` (`user_id` ASC) INVISIBLE, 
+ADD INDEX `inx_operator_id` (`operator_id` ASC) VISIBLE,
+ADD INDEX `inx_match_id` (`match_id` ASC) VISIBLE,  
 ADD INDEX `inx_created_at` (`created_at` ASC) VISIBLE;

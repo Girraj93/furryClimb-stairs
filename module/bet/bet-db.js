@@ -41,3 +41,20 @@ export const insertBets = async (betData) => {
     console.error(err);
   }
 };
+
+export const insertMatchRound = async (betData) => {
+  try {
+    const SQL_INSERT_BETS =
+      "INSERT INTO match_round (user_id, operator_id,match_id,game_data,is_winner) VALUES(?,?,?,?,?)";
+    const { user_id, operator_id, gameData, matchId, isWinner } = betData;
+    await write(SQL_INSERT_BETS, [
+      decodeURIComponent(user_id),
+      operator_id,
+      matchId,
+      gameData,
+      isWinner,
+    ]);
+  } catch (err) {
+    console.error(err);
+  }
+};

@@ -10,7 +10,7 @@ export const registerEvents = async (io, socket) => {
       case "CO":
         return cashout(io, socket);
       case "GP":
-        //GP:currentindex:row
+        //GP:stairindex:row
         return gamePlay(io, socket, event[1], event[2]);
     }
   });

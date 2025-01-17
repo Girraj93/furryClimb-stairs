@@ -54,6 +54,7 @@ export const initSocket = (io) => {
     }
     registerEvents(io, socket);
     socket.on("disconnect", async () => {
+      console.log("disconnected");
       await deleteCache(`PL:${userData.userId}:${userData.operatorId}`);
     });
     socket.on("error", (error) => {

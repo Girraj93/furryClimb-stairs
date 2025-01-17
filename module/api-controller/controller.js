@@ -20,30 +20,37 @@ export const topBets = async (req, res) => {
 };
 export const myBets = async (req, res) => {
   try {
-    const { user_id } = req.query;
+    const { user_id, matchId } = req.query;
     if (!user_id) {
       return res.status(400).json({ message: "User ID is required" });
     }
     const data = await read(
-      `SELECT
-    b.bet_amount,
-    COALESCE(s.win_amount, 0) AS win_amount,
-    COALESCE(s.multiplier, 0) AS multiplier,
-    UNIX_TIMESTAMP(b.created_at) * 1000 AS Time,
-      (CASE
-          WHEN win_amount > 0 THEN 'WIN'
-          ELSE 'LOOSE'
-      END) AS status FROM bets b
-      LEFT JOIN
-    settlement s
-ON
-    b.user_id = s.user_id AND b.bet_id = s.bet_id
-WHERE
-    b.user_id =?
-ORDER BY
-    b.created_at DESC LIMIT 30
-`,
-      [user_id]
+      `SELECT 
+          b.bet_amount,
+          COALESCE(s.win_amount, 0) AS win_amount,
+          COALESCE(s.multiplier, 0) AS multiplier,
+          UNIX_TIMESTAMP(b.created_at) * 1000 AS Time,
+          (CASE
+              WHEN COALESCE(s.win_amount, 0) > 0 THEN 'WIN'
+              ELSE 'LOOSE'
+          END) AS status,
+          mr.game_data
+      FROM 
+          bets b
+      LEFT JOIN 
+          settlement s
+      ON 
+          b.user_id = s.user_id AND b.bet_id = s.bet_id
+      LEFT JOIN 
+          match_round mr
+      ON 
+          b.user_id = mr.user_id AND mr.match_id = ?
+      WHERE 
+          b.user_id = ?
+      ORDER BY 
+          b.created_at DESC
+      LIMIT 30`,
+      [matchId, user_id]
     );
     return res.json({
       message: "user history fetched successfully",

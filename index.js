@@ -30,12 +30,10 @@ const startServer = async () => {
   app.use("/routes", router);
   initSocket(io);
   app.get("/", (req, res) => {
-    return res
-      .status(200)
-      .send({
-        status: true,
-        msg: "furry Climb staires game server is up and running",
-      });
+    return res.status(200).send({
+      status: true,
+      msg: "furry Climb staires game server is up and running",
+    });
   });
 
   server.listen(port, () => {

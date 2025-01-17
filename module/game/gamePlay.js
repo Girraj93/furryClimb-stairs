@@ -8,7 +8,7 @@ import {
   postDataToSourceForBet,
   prepareDataForWebhook,
 } from "../../utilities/common-function.js";
-import { addSettleBet, insertBets } from "../bet/bet-db.js";
+import { addSettleBet, insertBets, insertMatchRound } from "../bet/bet-db.js";
 import { sendToQueue } from "../../utilities/amqp.js";
 import {
   allFireBalls,
@@ -31,6 +31,8 @@ export const startMatch = async (io, socket, betAmount, fireball) => {
     alive: true,
     payout: 0,
     multiplier: 0,
+    currentTime: Date.now(),
+    inactivityTimer: null,
   };
   if (!betObj[userId]) {
     await handleBet(io, socket, betAmount);
@@ -152,10 +154,10 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
       msg: "Row cannot be greater than finalRow",
     });
   }
-  console.log("called");
+
+  gameState[user_id].currentTime = Date.now();
   const fireball = gameState[user_id].level;
   const multiplier = await getMultiplier(fireball, row);
-  console.log(multiplier, "in gameplay");
   gameState[user_id].multiplier = multiplier;
 
   const balls = await generateFireballs(row, fireball);
@@ -189,6 +191,14 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
     socket.emit("message", {
       action: "gameState",
       msg: gameState[user_id],
+    });
+    gameState[user_id].restFireBalls = restFireBalls;
+    await insertMatchRound({
+      user_id,
+      operator_id: socket.data?.userInfo.operatorId,
+      matchId: betObj[user_id].matchId,
+      gameData: gameState[user_id],
+      isWinner: false,
     });
 
     delete gameState[user_id];
@@ -278,6 +288,14 @@ export const cashout = async (io, socket) => {
       `PL:${user_id}:${socket.data.userInfo.operatorId}`,
       JSON.stringify(parsedPlayerDetails)
     );
+
+    await insertMatchRound({
+      user_id,
+      operator_id: socket.data?.userInfo.operatorId,
+      matchId: betObj[user_id].matchId,
+      gameData: gameState[user_id],
+      isWinner: true,
+    });
 
     delete betObj[user_id];
     delete gameState[user_id];

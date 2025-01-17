@@ -2,6 +2,7 @@ import { parse } from "dotenv";
 import { createLogger } from "./logger.js";
 import { appConfig } from "./app-config.js";
 import { read } from "./db-connection.js";
+// import { gameState, cashout } from "../module/game/gamePlay.js";
 
 const failedBetLogger = createLogger("failedBets", "jsonl");
 const failedPartialCashoutLogger = createLogger(
@@ -26,22 +27,6 @@ export const logEventAndEmitResponse = (req, res, event, socket) => {
   }
   return socket.emit("betError", res);
 };
-
-// export const hiddenColumnsPerRow = [
-//   [],
-//   [0],
-//   [19],
-//   [17, 18, 19],
-//   [0],
-//   [0, 1, 2, 18, 19],
-//   [17, 18, 19],
-//   [13, 14, 15, 16, 17, 18, 19],
-//   [12, 13, 14, 15, 16, 17, 18, 19],
-//   [0],
-//   [0, 1, 2, 3, 14, 15, 16, 17, 18, 19],
-//   [0, 1, 2, 3, 4, 14, 15, 16, 17, 18, 19],
-//   [0, 1, 2, 3, 4, 13, 14, 15, 16, 17, 18, 19],
-// ];
 
 export async function allFireBalls(fireball, currentRow) {
   let firstIndex = appConfig.firstIndex;
@@ -130,7 +115,6 @@ export async function generateFireballs(currentRow, fireball) {
 export const getMultiplier = async (fireball, row) => {
   row = Number(row);
   const multipliers = await gameData();
-  console.log(multipliers);
   let multiplier = multipliers[fireball];
   multiplier = multiplier[row];
   console.log(multiplier);
@@ -169,3 +153,16 @@ export const hiddenTiles = async () => {
     throw error;
   }
 };
+
+// export const resetInactivityTimer = (io, socket) => {
+//   const userId = socket.data.userInfo.userId;
+
+//   if (!gameState[userId]) return;
+//   if (gameState[userId].inactivityTimer) {
+//     clearTimeout(gameState[userId].inactivityTimer);
+//   }
+//   gameState[userId].inactivityTimer = setTimeout(async () => {
+//     console.log(`User ${userId} inactive for 3 minutes, triggering cashout.`);
+//     await cashout(io, socket);
+//   }, 3 * 60 * 1000);
+// };
