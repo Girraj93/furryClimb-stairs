@@ -13,10 +13,14 @@ import { sendToQueue } from "../../utilities/amqp.js";
 import {
   allFireBalls,
   generateFireballs,
-  getLastMultiplier,
   getMultiplier,
+  logEventAndEmitResponse,
 } from "../../utilities/helper-function.js";
 import { appConfig } from "../../utilities/app-config.js";
+import { createLogger } from "../../utilities/logger.js";
+const betLogger = createLogger("Bets", "jsonl");
+const cashoutLogger = createLogger("Cashout", "jsonl");
+const failedBetLogger = createLogger("failedBets", "jsonl");
 
 export const gameState = {};
 export let betObj = {};
@@ -31,8 +35,6 @@ export const startMatch = async (io, socket, betAmount, fireball) => {
     alive: true,
     payout: 0,
     multiplier: 0,
-    currentTime: Date.now(),
-    inactivityTimer: null,
   };
   if (!betObj[userId]) {
     await handleBet(io, socket, betAmount);
@@ -51,6 +53,7 @@ export const handleBet = async (io, socket, betAmount) => {
   const { userId, operatorId, token, game_id, balance } = parsedPlayerDetails;
   const matchId = generateUUIDv7();
   const bet_id = `BT:${matchId}:${userId}:${operatorId}`;
+  const gameLog = { logId: generateUUIDv7(), player: playerDetails };
   betObj[userId] = betObj[userId] || {};
   Object.assign(betObj[userId], {
     betAmount,
@@ -61,7 +64,10 @@ export const handleBet = async (io, socket, betAmount) => {
     matchId,
   });
 
+  gameLog.betObj = betObj[user_id];
+
   if (Number(betAmount) < appConfig.minBetAmount) {
+    logEventAndEmitResponse(gameLog, "Invalid Bet", "bet", socket);
     return socket.emit("message", {
       action: "betError",
       msg: "Bet Amount cannot be less than Rs.10",
@@ -69,6 +75,7 @@ export const handleBet = async (io, socket, betAmount) => {
   }
 
   if (Number(betAmount) > appConfig.maxBetAmount) {
+    logEventAndEmitResponse(gameLog, "Invalid Bet", "bet", socket);
     return socket.emit("message", {
       action: "betError",
       msg: "Bet Amount cannot be grater than Rs.5000",
@@ -76,6 +83,7 @@ export const handleBet = async (io, socket, betAmount) => {
   }
 
   if (Number(betAmount) > Number(balance)) {
+    logEventAndEmitResponse(gameLog, "Invalid Bet", "bet", socket);
     return socket.emit("message", {
       action: "betError",
       msg: `insufficient balance`,
@@ -100,7 +108,10 @@ export const handleBet = async (io, socket, betAmount) => {
       socketId: socket.id,
     });
   } catch (err) {
-    JSON.stringify({ req: bet_id, res: "bets cancelled by upstream" });
+    failedBetLogger.error(
+      JSON.stringify({ req: bet_id, res: "bets cancelled by upstream" })
+    );
+    logEventAndEmitResponse(gameLog, "Upstream Cancelled", "bet", socket);
     delete betObj[userId];
     delete gameState[userId];
     return socket.emit("error", "Bet Cancelled by Upstream Server");
@@ -128,6 +139,7 @@ export const handleBet = async (io, socket, betAmount) => {
       avatarIndex: parsedPlayerDetails.image,
     },
   });
+  betLogger.info(JSON.stringify({ ...gameLog }));
   socket.emit("message", {
     action: "bet",
     msg: "Bet placed Successfully",
@@ -154,8 +166,7 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
       msg: "Row cannot be greater than finalRow",
     });
   }
-
-  gameState[user_id].currentTime = Date.now();
+  console.log("called");
   const fireball = gameState[user_id].level;
   const multiplier = await getMultiplier(fireball, row);
   gameState[user_id].multiplier = multiplier;
@@ -193,6 +204,7 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
       msg: gameState[user_id],
     });
     gameState[user_id].restFireBalls = restFireBalls;
+
     await insertMatchRound({
       user_id,
       operator_id: socket.data?.userInfo.operatorId,
@@ -228,9 +240,11 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
 
 export const cashout = async (io, socket) => {
   const user_id = socket.data?.userInfo.user_id;
+  console.log(user_id, "userid in cashout");
   let playerDetails = await getCache(
     `PL:${user_id}:${socket.data.userInfo.operatorId}`
   );
+  console.log("playerdetalis in cashout", playerDetails);
   if (!playerDetails)
     return socket.emit("message", {
       action: "cashoutError",
@@ -242,7 +256,7 @@ export const cashout = async (io, socket) => {
   const userBetData = betObj[user_id];
   if (!userBetData) {
     return io.to(parsedPlayerDetails.socketId).emit("message", {
-      action: "betError",
+      action: "cashoutError",
       msg: "no bet data found",
     });
   }
@@ -288,6 +302,14 @@ export const cashout = async (io, socket) => {
       `PL:${user_id}:${socket.data.userInfo.operatorId}`,
       JSON.stringify(parsedPlayerDetails)
     );
+    const fireball = gameState[user_id].level;
+    const stair = gameState[user_id].stairs;
+
+    if (gameState[user_id].stairs[stair.length - 1].row < appConfig.finalRow) {
+      const row = gameState[user_id].stairs[stair.length - 1].row;
+      const restFireBalls = await allFireBalls(fireball, row);
+      gameState[user_id].restFireBalls = restFireBalls;
+    }
 
     await insertMatchRound({
       user_id,
@@ -296,9 +318,6 @@ export const cashout = async (io, socket) => {
       gameData: gameState[user_id],
       isWinner: true,
     });
-
-    delete betObj[user_id];
-    delete gameState[user_id];
 
     io.to(parsedPlayerDetails.socketId).emit("message", {
       action: "info",
@@ -316,5 +335,17 @@ export const cashout = async (io, socket) => {
       msg: { final_amount, multiplier },
     });
     await addSettleBet(settlements);
+
+    delete betObj[user_id];
+    delete gameState[user_id];
   }
+};
+
+export const disconnection = async (io, socket) => {
+  console.log("cashout on disconnect");
+  socket.emit("message", {
+    action: "disconnect",
+    msg: "player disconnected",
+  });
+  await cashout(io, socket);
 };

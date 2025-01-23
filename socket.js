@@ -45,7 +45,10 @@ export const initSocket = (io) => {
       msg: { hiddenColumnsPerRow, multipliers },
     });
 
+    console.log(gameState, "console");
+
     if (gameState[userData.userId]) {
+      console.log("hah");
       socket.emit("message", {
         action: "reconnection",
         msg: gameState[userData.userId],
@@ -54,7 +57,6 @@ export const initSocket = (io) => {
     }
     registerEvents(io, socket);
     socket.on("disconnect", async () => {
-      console.log("disconnected");
       await deleteCache(`PL:${userData.userId}:${userData.operatorId}`);
     });
     socket.on("error", (error) => {

@@ -2,7 +2,6 @@ import { parse } from "dotenv";
 import { createLogger } from "./logger.js";
 import { appConfig } from "./app-config.js";
 import { read } from "./db-connection.js";
-// import { gameState, cashout } from "../module/game/gamePlay.js";
 
 const failedBetLogger = createLogger("failedBets", "jsonl");
 const failedPartialCashoutLogger = createLogger(
@@ -117,10 +116,8 @@ export const getMultiplier = async (fireball, row) => {
   const multipliers = await gameData();
   let multiplier = multipliers[fireball];
   multiplier = multiplier[row];
-  console.log(multiplier);
   return multiplier;
 };
-
 export const gameData = async () => {
   try {
     const result = await read(`SELECT multipliers FROM game_templates`);
@@ -153,16 +150,3 @@ export const hiddenTiles = async () => {
     throw error;
   }
 };
-
-// export const resetInactivityTimer = (io, socket) => {
-//   const userId = socket.data.userInfo.userId;
-
-//   if (!gameState[userId]) return;
-//   if (gameState[userId].inactivityTimer) {
-//     clearTimeout(gameState[userId].inactivityTimer);
-//   }
-//   gameState[userId].inactivityTimer = setTimeout(async () => {
-//     console.log(`User ${userId} inactive for 3 minutes, triggering cashout.`);
-//     await cashout(io, socket);
-//   }, 3 * 60 * 1000);
-// };

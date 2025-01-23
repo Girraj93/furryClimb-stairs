@@ -1,4 +1,9 @@
-import { cashout, gamePlay, startMatch } from "../module/game/gamePlay.js";
+import {
+  cashout,
+  disconnection,
+  gamePlay,
+  startMatch,
+} from "../module/game/gamePlay.js";
 export const registerEvents = async (io, socket) => {
   socket.on("action", (data) => {
     const event = data.split(":");
@@ -12,6 +17,8 @@ export const registerEvents = async (io, socket) => {
       case "GP":
         //GP:stairindex:row
         return gamePlay(io, socket, event[1], event[2]);
+      case "disconnection":
+        return disconnection(io, socket);
     }
   });
 };

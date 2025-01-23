@@ -3,8 +3,24 @@ import { read } from "../../utilities/db-connection.js";
 export const topBets = async (req, res) => {
   try {
     const data = await read(
-      `SELECT user_id,win_amount,bet_amount,multiplier,unix_timestamp(created_at)*1000 as Time
-       FROM settlement ORDER BY win_amount DESC LIMIT 30`
+      `SELECT 
+    s.user_id,
+    s.win_amount,
+    s.bet_amount,
+    s.multiplier,
+    UNIX_TIMESTAMP(s.created_at) * 1000 AS Time,
+    (
+        SELECT game_data
+        FROM match_round mr
+        WHERE mr.user_id = s.user_id
+        ORDER BY mr.created_at DESC
+        LIMIT 1
+    ) AS game_data
+FROM
+    settlement s
+ORDER BY s.win_amount DESC
+LIMIT 30;
+`
     );
     if (!data.length) {
       return res.status(404).json({ message: "No topBets history found" });
@@ -20,12 +36,12 @@ export const topBets = async (req, res) => {
 };
 export const myBets = async (req, res) => {
   try {
-    const { user_id, matchId } = req.query;
+    const { user_id } = req.query;
     if (!user_id) {
       return res.status(400).json({ message: "User ID is required" });
     }
     const data = await read(
-      `SELECT 
+      `SELECT
           b.bet_amount,
           COALESCE(s.win_amount, 0) AS win_amount,
           COALESCE(s.multiplier, 0) AS multiplier,
@@ -35,22 +51,22 @@ export const myBets = async (req, res) => {
               ELSE 'LOOSE'
           END) AS status,
           mr.game_data
-      FROM 
+      FROM
           bets b
-      LEFT JOIN 
+      LEFT JOIN
           settlement s
-      ON 
-          b.user_id = s.user_id AND b.bet_id = s.bet_id
-      LEFT JOIN 
+      ON
+          b.user_id = s.user_id AND b.match_id = s.match_id
+      LEFT JOIN
           match_round mr
-      ON 
-          b.user_id = mr.user_id AND mr.match_id = ?
-      WHERE 
+      ON
+          b.user_id = mr.user_id AND b.match_id = mr.match_id
+      WHERE
           b.user_id = ?
-      ORDER BY 
+      ORDER BY
           b.created_at DESC
       LIMIT 30`,
-      [matchId, user_id]
+      [user_id]
     );
     return res.json({
       message: "user history fetched successfully",
