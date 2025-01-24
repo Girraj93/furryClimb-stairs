@@ -24,6 +24,7 @@ const failedBetLogger = createLogger("failedBets", "jsonl");
 
 export const gameState = {};
 export let betObj = {};
+export let fireBallObj = {};
 
 export const startMatch = async (io, socket, betAmount, fireball) => {
   console.log(betAmount, fireball);
@@ -170,8 +171,16 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
   const fireball = gameState[user_id].level;
   const multiplier = await getMultiplier(fireball, row);
   gameState[user_id].multiplier = multiplier;
+  if (row == appConfig.firstIndex) {
+    console.log("enter");
+    const abc = await allFireBalls(fireball, row);
+    fireBallObj[user_id] = abc;
+    console.log(fireBallObj, "fireballj");
+  }
 
-  const balls = await generateFireballs(row, fireball);
+  const balls = fireBallObj[user_id][row];
+  console.log(balls, "balls");
+
   if (!gameState[user_id].bombs) {
     gameState[user_id].bombs = {};
   }
@@ -196,14 +205,12 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
   if (gameState[user_id].bombs[row].includes(Number(currentIndex))) {
     gameState[user_id].alive = false;
     gameState[user_id].payout = 0;
-    const restFireBalls = await allFireBalls(fireball, row);
-    console.log(restFireBalls, "fifi");
+    gameState[user_id].bombs = fireBallObj[user_id];
 
     socket.emit("message", {
       action: "gameState",
       msg: gameState[user_id],
     });
-    gameState[user_id].restFireBalls = restFireBalls;
 
     await insertMatchRound({
       user_id,
@@ -218,7 +225,6 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
     return socket.emit("message", {
       action: "gameOver",
       msg: "You lose! You hit a fireball!",
-      restfireball: restFireBalls,
     });
   }
 
@@ -302,14 +308,15 @@ export const cashout = async (io, socket) => {
       `PL:${user_id}:${socket.data.userInfo.operatorId}`,
       JSON.stringify(parsedPlayerDetails)
     );
-    const fireball = gameState[user_id].level;
-    const stair = gameState[user_id].stairs;
+    // const fireball = gameState[user_id].level;
+    // const stair = gameState[user_id].stairs;
 
-    if (gameState[user_id].stairs[stair.length - 1].row < appConfig.finalRow) {
-      const row = gameState[user_id].stairs[stair.length - 1].row;
-      const restFireBalls = await allFireBalls(fireball, row);
-      gameState[user_id].restFireBalls = restFireBalls;
-    }
+    // if (gameState[user_id].stairs[stair.length - 1].row < appConfig.finalRow) {
+    //   const row = gameState[user_id].stairs[stair.length - 1].row;
+    //   const restFireBalls = await allFireBalls(fireball, row);
+    //   gameState[user_id].restFireBalls = restFireBalls;
+    // }
+    gameState[user_id].bombs = fireBallObj[user_id];
 
     await insertMatchRound({
       user_id,

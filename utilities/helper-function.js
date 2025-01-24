@@ -41,7 +41,7 @@ export async function allFireBalls(fireball, currentRow) {
   const fireballsByRow = {};
   let hiddenColumnsPerRow = await hiddenTiles();
 
-  for (let row = currentRow + 1; row <= totalRows; row++) {
+  for (let row = currentRow; row <= totalRows; row++) {
     const hiddenColumns = new Set(hiddenColumnsPerRow[row] || []);
     const validColumns = [];
 
