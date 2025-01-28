@@ -45,10 +45,8 @@ export const initSocket = (io) => {
       msg: { hiddenColumnsPerRow, multipliers },
     });
 
-    console.log(gameState, "console");
-
     if (gameState[userData.userId]) {
-      console.log("hah");
+      console.log("recoonection");
       socket.emit("message", {
         action: "reconnection",
         msg: gameState[userData.userId],

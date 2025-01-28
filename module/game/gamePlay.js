@@ -12,7 +12,6 @@ import { addSettleBet, insertBets, insertMatchRound } from "../bet/bet-db.js";
 import { sendToQueue } from "../../utilities/amqp.js";
 import {
   allFireBalls,
-  generateFireballs,
   getMultiplier,
   logEventAndEmitResponse,
 } from "../../utilities/helper-function.js";
@@ -27,24 +26,14 @@ export let betObj = {};
 export let fireBallObj = {};
 
 export const startMatch = async (io, socket, betAmount, fireball) => {
-  console.log(betAmount, fireball);
   const userId = socket.data.userInfo.userId;
-  gameState[userId] = {
-    level: fireball,
-    stairs: [],
-    bombs: {},
-    alive: true,
-    payout: 0,
-    multiplier: 0,
-  };
   if (!betObj[userId]) {
-    await handleBet(io, socket, betAmount);
+    await handleBet(io, socket, betAmount, fireball);
   }
 };
 
 //handle bets and Debit transation---------------------------------------
-export const handleBet = async (io, socket, betAmount) => {
-  console.log("had,ebet", betAmount);
+export const handleBet = async (io, socket, betAmount, fireball) => {
   const user_id = socket.data?.userInfo.user_id;
   let playerDetails = await getCache(
     `PL:${user_id}:${socket.data.userInfo.operatorId}`
@@ -64,7 +53,11 @@ export const handleBet = async (io, socket, betAmount) => {
     game_id,
     matchId,
   });
-
+  console.log(
+    parsedPlayerDetails.socketId,
+    user_id,
+    "socketid and userid in henadle bet"
+  );
   gameLog.betObj = betObj[user_id];
 
   if (Number(betAmount) < appConfig.minBetAmount) {
@@ -115,7 +108,10 @@ export const handleBet = async (io, socket, betAmount) => {
     logEventAndEmitResponse(gameLog, "Upstream Cancelled", "bet", socket);
     delete betObj[userId];
     delete gameState[userId];
-    return socket.emit("error", "Bet Cancelled by Upstream Server");
+    return io.to(parsedPlayerDetails.socketId).emit("message", {
+      action: "betFailError",
+      msg: "Bet cancelled by upstream",
+    });
   }
   await insertBets({
     bet_id,
@@ -130,7 +126,13 @@ export const handleBet = async (io, socket, betAmount) => {
     JSON.stringify(parsedPlayerDetails)
   );
 
-  socket.emit("message", {
+  console.log(
+    user_id,
+    parsedPlayerDetails.socketId,
+    "userid and socket id in hadnle bet"
+  );
+
+  io.to(parsedPlayerDetails.socketId).emit("message", {
     action: "info",
     msg: {
       userId: userId,
@@ -141,10 +143,20 @@ export const handleBet = async (io, socket, betAmount) => {
     },
   });
   betLogger.info(JSON.stringify({ ...gameLog }));
-  socket.emit("message", {
+
+  io.to(parsedPlayerDetails.socketId).emit("message", {
     action: "bet",
     msg: "Bet placed Successfully",
   });
+
+  gameState[user_id] = {
+    level: fireball,
+    stairs: [],
+    bombs: {},
+    alive: true,
+    payout: 0,
+    multiplier: 0,
+  };
 };
 
 export const gamePlay = async (io, socket, currentIndex, row) => {
@@ -161,26 +173,35 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
       msg: "Undefined Row",
     });
   }
-  if (row > appConfig.finalRow) {
+  if (Number(row) > Number(appConfig.finalRow)) {
     return socket.emit("message", {
       action: "gameError",
       msg: "Row cannot be greater than finalRow",
     });
   }
-  console.log("called");
+  //condition for last row
+  if (
+    Number(row) <=
+    gameState[user_id]?.stairs?.[gameState[user_id].stairs.length - 1]?.row
+  ) {
+    return socket.emit("message", {
+      action: "gameError",
+      msg: "Current row cannot equal or less than last row",
+    });
+  }
+
   const fireball = gameState[user_id].level;
   const multiplier = await getMultiplier(fireball, row);
   gameState[user_id].multiplier = multiplier;
-  if (row == appConfig.firstIndex) {
+
+  if (Number(row) == Number(appConfig.firstIndex)) {
     console.log("enter");
-    const abc = await allFireBalls(fireball, row);
-    fireBallObj[user_id] = abc;
-    console.log(fireBallObj, "fireballj");
+    const allBombs = await allFireBalls(fireball, row);
+    fireBallObj[user_id] = allBombs;
+    console.log(user_id, fireBallObj[user_id], "fireballj");
   }
 
   const balls = fireBallObj[user_id][row];
-  console.log(balls, "balls");
-
   if (!gameState[user_id].bombs) {
     gameState[user_id].bombs = {};
   }
@@ -197,10 +218,6 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
   gameState[user_id].payout = (
     Number(betObj[user_id]?.betAmount) * Number(multiplier)
   ).toFixed(2);
-
-  if (gameState[user_id].payout > appConfig.maxWinAmount) {
-    gameState[user_id].payout = appConfig.maxWinAmount;
-  }
 
   if (gameState[user_id].bombs[row].includes(Number(currentIndex))) {
     gameState[user_id].alive = false;
@@ -228,7 +245,7 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
     });
   }
 
-  if (Number(row) === appConfig.finalRow) {
+  if (Number(row) === Number(appConfig.finalRow)) {
     // let multiplier = getLastMultiplier(fireball);
     socket.emit("message", {
       action: "gameState",
@@ -246,11 +263,9 @@ export const gamePlay = async (io, socket, currentIndex, row) => {
 
 export const cashout = async (io, socket) => {
   const user_id = socket.data?.userInfo.user_id;
-  console.log(user_id, "userid in cashout");
   let playerDetails = await getCache(
     `PL:${user_id}:${socket.data.userInfo.operatorId}`
   );
-  console.log("playerdetalis in cashout", playerDetails);
   if (!playerDetails)
     return socket.emit("message", {
       action: "cashoutError",
@@ -258,6 +273,11 @@ export const cashout = async (io, socket) => {
     });
   const parsedPlayerDetails = JSON.parse(playerDetails);
   const multiplier = gameState[user_id]?.multiplier;
+  console.log(
+    user_id,
+    parsedPlayerDetails.socketId,
+    "userid and socket id in cashout"
+  );
   const settlements = [];
   const userBetData = betObj[user_id];
   if (!userBetData) {
@@ -267,6 +287,11 @@ export const cashout = async (io, socket) => {
     });
   }
   let final_amount = gameState[user_id].payout;
+
+  if (Number(final_amount) > appConfig.maxWinAmount) {
+    final_amount = appConfig.maxWinAmount;
+  }
+
   const webhookData = await prepareDataForWebhook(
     {
       user_id,
@@ -316,6 +341,7 @@ export const cashout = async (io, socket) => {
     //   const restFireBalls = await allFireBalls(fireball, row);
     //   gameState[user_id].restFireBalls = restFireBalls;
     // }
+
     gameState[user_id].bombs = fireBallObj[user_id];
 
     await insertMatchRound({
@@ -325,6 +351,11 @@ export const cashout = async (io, socket) => {
       gameData: gameState[user_id],
       isWinner: true,
     });
+    console.log(
+      user_id,
+      parsedPlayerDetails.socketId,
+      "userid and socket id in cashout"
+    );
 
     io.to(parsedPlayerDetails.socketId).emit("message", {
       action: "info",
@@ -351,7 +382,7 @@ export const cashout = async (io, socket) => {
 export const disconnection = async (io, socket) => {
   console.log("cashout on disconnect");
   socket.emit("message", {
-    action: "disconnect",
+    action: "disconnection",
     msg: "player disconnected",
   });
   await cashout(io, socket);

@@ -9,15 +9,11 @@ export const topBets = async (req, res) => {
     s.bet_amount,
     s.multiplier,
     UNIX_TIMESTAMP(s.created_at) * 1000 AS Time,
-    (
-        SELECT game_data
-        FROM match_round mr
-        WHERE mr.user_id = s.user_id
-        ORDER BY mr.created_at DESC
-        LIMIT 1
-    ) AS game_data
+    mr.game_data
 FROM
     settlement s
+LEFT JOIN match_round mr
+    ON s.user_id = mr.user_id AND s.created_at = mr.created_at
 ORDER BY s.win_amount DESC
 LIMIT 30;
 `
@@ -31,6 +27,41 @@ LIMIT 30;
     });
   } catch (error) {
     console.error("Error fetching users topBets:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+export const allBets = async (req, res) => {
+  try {
+    const data = await read(
+      `SELECT
+          b.user_id,
+          b.bet_amount,
+          COALESCE(s.win_amount, 0) AS win_amount,
+          COALESCE(s.multiplier, 0) AS multiplier,
+          UNIX_TIMESTAMP(b.created_at) * 1000 AS Time,
+          mr.game_data
+      FROM
+          bets b
+      LEFT JOIN
+          settlement s
+      ON
+          b.user_id = s.user_id AND b.match_id = s.match_id
+      LEFT JOIN
+          match_round mr
+      ON
+          b.user_id = mr.user_id AND b.match_id = mr.match_id
+      WHERE
+          mr.game_data IS NOT NULL
+      ORDER BY
+          b.created_at DESC
+      LIMIT 30`
+    );
+    return res.json({
+      message: "Latest 30 user bets fetched successfully",
+      allBets: data,
+    });
+  } catch (error) {
+    console.error("Error fetching all bets:", error);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
@@ -62,7 +93,7 @@ export const myBets = async (req, res) => {
       ON
           b.user_id = mr.user_id AND b.match_id = mr.match_id
       WHERE
-          b.user_id = ?
+          b.user_id = ? AND mr.game_data IS NOT NULL
       ORDER BY
           b.created_at DESC
       LIMIT 30`,
@@ -77,6 +108,7 @@ export const myBets = async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 export const singleMatchHistory = async (req, res) => {
   try {
     const { user_id, operator_id, match_id } = req.query;
